@@ -547,6 +547,7 @@ namespace PostApo.District
 
             var recipes = _plugin.Craft.RecipesForSpecialite(point.specialite).ToList();
             var member = IsMemberOf(player, district);
+            var ready = recipes.Count(r => _plugin.Craft.HasAllInputs(player, r));
 
             // On affiche toujours a qui appartient l'atelier : un joueur ne doit jamais se demander
             // sur quel district il vient de tomber.

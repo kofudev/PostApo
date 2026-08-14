@@ -446,57 +446,117 @@ namespace PostApo.Vehicle
                                          VehicleBlueprint blueprint, int tierPage)
         {
             var hasPlan = Utils.CountItem(player, blueprint.planItemId) > 0;
+            var unlocked = UnlockedTier(district.id);
+            var locked = blueprint.tier > unlocked;
 
-            var body = "<b>" + blueprint.name + "</b>  "
-                       + Ui.Dim("Palier " + blueprint.tier + " — " + TierName(blueprint.tier)) + "\n"
-                       + "Plan : " + Ui.Accent(blueprint.planLabel)
-                       + "  " + (hasPlan ? Ui.Ok("✓ vous l'avez") : Ui.Bad("✕ à trouver en épave"))
-                       + "\n";
+            // Vue de navigation plutot que pave de texte : un vehicule de palier 5 compte
+            // sept etapes et plus de vingt lignes de materiaux, illisibles d'un bloc.
+            var body = Ui.Dim("Palier " + blueprint.tier + " — " + TierName(blueprint.tier)
+                              + " · " + blueprint.stages.Count + " étapes") + "\n"
+                       + "Plan : " + Ui.Accent(blueprint.planLabel) + "  "
+                       + (hasPlan ? Ui.Ok("✓ en votre possession") : Ui.Bad("✕ à trouver en épave"))
+                       + "\n"
+                       + (locked
+                           ? Ui.Bad("Palier verrouillé (district au palier " + unlocked + ").")
+                           : Ui.Ok("Constructible par votre district."));
 
-            // Total agrégé par item : la vraie question est « combien au total ».
-            var totals = new Dictionary<int, int>();
+            var entries = new List<Ui.MenuEntry>
+            {
+                new Ui.MenuEntry(Ui.Accent("▣ Total des ressources"), Mat.BoiteAOutils, "tout le chantier",
+                    () => OpenBlueprintTotals(player, district, blueprint, tierPage)),
+            };
 
             for (var i = 0; i < blueprint.stages.Count; i++)
             {
-                var stage = blueprint.stages[i];
-                body += "\n" + Ui.Accent("Étape " + (i + 1) + " : " + stage.name)
-                        + Ui.Dim("  (" + CraftEngine.FormatDuration(EffectiveWork(stage)) + ")");
+                var index = i;
+                var stage = blueprint.stages[index];
+                var missing = stage.inputs.Count(x => Utils.CountItem(player, x.ResolvedId) < x.qty);
 
-                if (!string.IsNullOrWhiteSpace(stage.description))
-                    body += "\n" + Ui.Dim("   " + stage.description);
-
-                body += "\n";
-
-                foreach (var input in stage.inputs)
-                {
-                    var have = Utils.CountItem(player, input.ResolvedId);
-                    var ok = have >= input.qty;
-                    body += (ok ? Ui.Ok("   ✓ ") : "   ")
-                            + input.qty + " × " + Utils.ItemName(input.ResolvedId)
-                            + Ui.Dim("  (vous : " + have + ")") + "\n";
-
-                    int current;
-                    totals[input.ResolvedId] = (totals.TryGetValue(input.ResolvedId, out current) ? current : 0) + input.qty;
-                }
-
-                var failPct = stage.failureChance >= 0f ? stage.failureChance : _plugin.Config.difficulty.craftFailureChance;
-                var failInt = Mathf.RoundToInt(Mathf.Clamp01(failPct) * 100f);
-                if (failInt > 0)
-                    body += Ui.Bad("   ⚠ Risque d'échec : " + failInt + "% (perd les matériaux de l'étape)") + "\n";
+                entries.Add(new Ui.MenuEntry(
+                    Ui.Dim((index + 1) + ". ") + stage.name,
+                    stage.inputs.Count > 0 ? stage.inputs[0].ResolvedId : 0,
+                    missing == 0 ? Ui.Ok("✓ prêt") : Ui.Bad("✕ " + missing + " manque" + (missing > 1 ? "s" : "")),
+                    () => OpenStageDetail(player, district, blueprint, index, tierPage)));
             }
 
-            body += "\n<b>── TOTAL À RÉUNIR ──</b>\n";
-            foreach (var pair in totals.OrderByDescending(p => p.Value))
+            entries.Add(new Ui.MenuEntry("← Retour au catalogue", 0, "",
+                () => OpenCatalog(player, district, tierPage)));
+
+            Ui.Menu(player, blueprint.name, body, entries, "Fermer", null);
+        }
+
+        /// <summary>Ressources d'une seule etape, une ligne par materiau.</summary>
+        private void OpenStageDetail(Player player, PostApo.District.District district,
+                                     VehicleBlueprint blueprint, int index, int tierPage)
+        {
+            if (index < 0 || index >= blueprint.stages.Count) { return; }
+
+            var stage = blueprint.stages[index];
+            var failInt = Mathf.RoundToInt(EffectiveFailure(stage) * 100f);
+
+            var body = Ui.Accent(stage.name) + "\n"
+                       + (string.IsNullOrWhiteSpace(stage.description) ? "" : Ui.Dim(stage.description) + "\n")
+                       + Ui.Dim("Travaux " + CraftEngine.FormatDuration(EffectiveWork(stage))
+                                + (failInt > 0 ? " · risque d'échec " + failInt + "%" : ""));
+
+            var entries = stage.inputs.Select(input =>
+            {
+                var have = Utils.CountItem(player, input.ResolvedId);
+                var ok = have >= input.qty;
+
+                return new Ui.MenuEntry(
+                    (ok ? Ui.Ok("✓ ") : Ui.Bad("✕ ")) + Utils.ItemName(input.ResolvedId)
+                    + (ok ? "" : Ui.Bad("  il manque " + (input.qty - have))),
+                    input.ResolvedId,
+                    have + "/" + input.qty,
+                    null);
+            }).ToList();
+
+            entries.Add(new Ui.MenuEntry("← Retour au plan", 0, "",
+                () => OpenBlueprintDetail(player, district, blueprint, tierPage)));
+
+            Ui.Menu(player, "Étape " + (index + 1) + "/" + blueprint.stages.Count, body, entries, "Fermer", null);
+        }
+
+        /// <summary>Somme des materiaux de toutes les etapes : « combien au total » en une vue.</summary>
+        private void OpenBlueprintTotals(Player player, PostApo.District.District district,
+                                         VehicleBlueprint blueprint, int tierPage)
+        {
+            var totals = new Dictionary<int, int>();
+
+            foreach (var stage in blueprint.stages)
+            {
+                foreach (var input in stage.inputs)
+                {
+                    int current;
+                    totals[input.ResolvedId] =
+                        (totals.TryGetValue(input.ResolvedId, out current) ? current : 0) + input.qty;
+                }
+            }
+
+            var owned = totals.Count(p => Utils.CountItem(player, p.Key) >= p.Value);
+
+            var body = Ui.Accent(blueprint.name) + "\n"
+                       + Ui.Dim("Tout ce qu'il faut réunir, toutes étapes confondues.") + "\n"
+                       + Ui.Dim(owned + "/" + totals.Count + " ressource(s) déjà complète(s) sur vous.");
+
+            var entries = totals.OrderByDescending(p => p.Value).Select(pair =>
             {
                 var have = Utils.CountItem(player, pair.Key);
                 var ok = have >= pair.Value;
-                body += (ok ? Ui.Ok("  ✓ ") : "  ")
-                        + pair.Value + " × " + Utils.ItemName(pair.Key)
-                        + Ui.Dim("  (sur vous : " + have + "/" + pair.Value + ")") + "\n";
-            }
 
-            Ui.LongText(player, blueprint.name, body, "← Retour au catalogue",
-                () => OpenCatalog(player, district, tierPage));
+                return new Ui.MenuEntry(
+                    (ok ? Ui.Ok("✓ ") : Ui.Bad("✕ ")) + Utils.ItemName(pair.Key)
+                    + (ok ? "" : Ui.Bad("  il manque " + (pair.Value - have))),
+                    pair.Key,
+                    have + "/" + pair.Value,
+                    null);
+            }).ToList();
+
+            entries.Add(new Ui.MenuEntry("← Retour au plan", 0, "",
+                () => OpenBlueprintDetail(player, district, blueprint, tierPage)));
+
+            Ui.Menu(player, "Total à réunir", body, entries, "Fermer", null);
         }
 
         private void OpenStartMenu(Player player, VehicleWorkshop workshop, PostApo.District.District district)

@@ -19,6 +19,16 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
+  <!-- Un second exemplaire complet du projet existe sous PostApo\PostApo\ (avec son propre depot
+       git). Le SDK compile tous les .cs du dossier : sans cette exclusion, chaque type est defini
+       deux fois et la compilation echoue. On exclut au lieu de supprimer : c'est a l'auteur de
+       decider quelle copie fait foi. -->
+  <ItemGroup>
+    <Compile Remove="PostApo\**" />
+    <None Remove="PostApo\**" />
+    <EmbeddedResource Remove="PostApo\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3" PrivateAssets="All" />
   </ItemGroup>
