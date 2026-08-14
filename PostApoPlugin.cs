@@ -914,20 +914,66 @@ namespace PostApo
             Ui.Info(player, district.name, body);
         }
 
+        /// <summary>Mention discrete, glissee dans les pieds de menus secondaires.</summary>
+        public static string Signature
+        {
+            get { return Ui.Dim("<size=10>100% développé par Kof660 ^^</size>"); }
+        }
+
+        /// <summary>Adhesion depuis le menu, avec recapitulatif avant validation.</summary>
+        private void ConfirmJoinDistrict(Player player, DistrictEntity district, string specialite)
+        {
+            var body = "<b>" + district.name + "</b>\n";
+            if (!string.IsNullOrWhiteSpace(district.description))
+            {
+                body += Ui.Dim(district.description) + "\n";
+            }
+
+            body += "\nSpecialite : " + Ui.Accent(specialite)
+                    + "\nMembres : " + district.members.Count
+                    + "\nBase : " + (district.HasBase ? Ui.Ok("configuree") : Ui.Dim("aucune"));
+
+            Ui.Confirm(player, "Rejoindre " + Utils.Sanitize(district.name, 26), body,
+                Ui.Ok("Rejoindre"), "Annuler",
+                () =>
+                {
+                    string error;
+                    if (!Districts.Join(player, district, out error))
+                    {
+                        Reply(player, Ui.Bad("✕ " + (error ?? "Adhesion impossible.")));
+                        return;
+                    }
+
+                    Reply(player, Ui.Ok("✓ Vous avez rejoint le " + district.name + "."));
+                    Checkpoints.Refresh(player, true);
+                    Webhook.LogDistrictSelection(Utils.Name(player), Utils.SteamId(player), district.name);
+                },
+                () => OpenDistrictMenu(player));
+        }
+
         private void OpenDistrictMenu(Player player)
         {
             var district = Districts.DistrictOf(player);
 
             if (district == null)
             {
+                // Sans cette entree, un joueur qui a quitte son district ne peut plus jamais en
+                // rejoindre un : le parcours d'arrivee ne se rejoue pas (verrouille par SteamID).
                 var entries = Districts.All.OrderBy(d => d.id).Select(d =>
                 {
                     var captured = d;
-                    return new Ui.MenuEntry(captured.name, () => ShowDistrictInfo(player, captured));
+                    var specialite = captured.specialites != null && captured.specialites.Count > 0
+                        ? string.Join(", ", captured.specialites.ToArray())
+                        : "aucune";
+
+                    return new Ui.MenuEntry(captured.name, 1077, captured.members.Count + " membres",
+                        () => ConfirmJoinDistrict(player, captured, specialite));
                 }).ToList();
 
                 Ui.Menu(player, "Districts d'Amboise",
-                    Ui.Dim("Vous n'appartenez a aucun district."), entries, "Fermer", null);
+                    Ui.Bad("Vous n'appartenez a aucun district.") + "\n"
+                    + Ui.Dim("Choisissez-en un pour le rejoindre.") + "\n" + Signature,
+                    entries, "Fermer", null);
                 return;
             }
 

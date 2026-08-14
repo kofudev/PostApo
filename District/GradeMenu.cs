@@ -302,16 +302,21 @@ namespace PostApo.District
                     break;
             }
 
-            var body = Ui.Dim("Cliquez une ligne pour l'activer ou la desactiver.");
+            var body = Ui.Dim("Cliquez une ligne pour l'activer ou la desactiver.") + "\n"
+                       + Ui.Ok("● ") + Ui.Dim("appliqué par le jeu   ")
+                       + Ui.Accent("◦ ") + Ui.Dim("indicatif (RP)");
+
             var entries = new List<Ui.MenuEntry>();
 
             foreach (var key in keys)
             {
                 var captured = key;
                 var enabled = grade.Has(captured);
+                var enforced = IsEnforced(captured);
 
                 entries.Add(new Ui.MenuEntry(
-                    (enabled ? Ui.Ok("✓ ") : Ui.Bad("✕ ")) + Label(captured),
+                    (enabled ? Ui.Ok("✓ ") : Ui.Bad("✕ ")) + Label(captured)
+                    + (enforced ? Ui.Ok("  ●") : Ui.Accent("  ◦")),
                     enabled ? IconOn : IconOff,
                     enabled ? "actif" : "inactif",
                     () =>
@@ -322,6 +327,22 @@ namespace PostApo.District
                         OpenPermissionGroup(player, district, grade, group);
                     }));
             }
+
+            entries.Add(new Ui.MenuEntry(Ui.Dim("À quoi sert le point vert ?"), 0, "",
+                () => Ui.Info(player, "Portee des permissions",
+                    Ui.Ok("● Appliqué par le jeu") + "\n"
+                    + "« Entrer sur les terrains » et « Utiliser les vehicules » pilotent la "
+                    + "co-propriete native de Nova-Life : le jeu les fait respecter lui-meme, "
+                    + "portes et coffres compris.\n\n"
+                    + Ui.Accent("◦ Indicatif (RP)") + "\n"
+                    + "Nova-Life n'expose aucun moyen d'intercepter l'ouverture d'un coffre ou la "
+                    + "pose d'un objet : ces cases sont enregistrees et affichees, mais le jeu ne "
+                    + "les bloque pas. Elles servent de reglement interne au district, et le plugin "
+                    + "les applique sur ce qu'il controle (ateliers, base, chantiers).\n\n"
+                    + Ui.Dim("Concretement : retirer « Entrer sur les terrains » a un grade lui "
+                             + "coupe reellement l'acces. Retirer « Poser des objets » ne l'empeche "
+                             + "pas techniquement de le faire.")
+                    + "\n\n" + PostApoPlugin.Signature)));
 
             Ui.Menu(player, title, body, entries, "Retour", () => OpenGrade(player, district, grade));
         }

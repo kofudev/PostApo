@@ -211,55 +211,65 @@ namespace PostApo.Etabli
         {
             if (player == null || recipe == null) { return; }
 
-            var body = "<b>" + recipe.name + "</b>\n";
+            // Le resume reste court pour tenir sur une page : le detail chiffre vit dans les
+            // lignes ci-dessous, ou chaque ressource occupe sa propre entree avec son icone.
+            var failPct = Mathf.RoundToInt(EffectiveFailure(recipe) * 100f);
+
+            var body = Ui.Accent("Produit : " + recipe.output.qty + " × "
+                                 + Utils.ItemName(recipe.output.ResolvedId)) + "\n";
+
             if (!string.IsNullOrWhiteSpace(recipe.description))
             {
                 body += Ui.Dim(recipe.description) + "\n";
             }
 
-            // Ressources nécessaires avec icônes et état possession
-            body += "\nRessources nécessaires :\n";
+            body += Ui.Dim("Durée " + FormatDuration(EffectiveTime(recipe))
+                           + (failPct > 0 ? " · risque d'échec " + failPct + "%" : "")
+                           + " · ressources prélevées au démarrage");
+
+            var entries = new List<Ui.MenuEntry>();
+            var canStart = true;
+
             foreach (var input in recipe.inputs)
             {
                 var have = Utils.CountItem(player, input.ResolvedId);
                 var enough = have >= input.qty;
-                body += (enough ? Ui.Ok("  ✓ ") : Ui.Bad("  ✕ "))
-                        + input.qty + " × " + Utils.ItemName(input.ResolvedId)
-                        + Ui.Dim("  (sur vous : " + have + "/" + input.qty + ")") + "\n";
+                if (!enough) { canStart = false; }
+
+                entries.Add(new Ui.MenuEntry(
+                    (enough ? Ui.Ok("✓ ") : Ui.Bad("✕ ")) + Utils.ItemName(input.ResolvedId)
+                    + (enough ? "" : Ui.Bad("  il manque " + (input.qty - have))),
+                    input.ResolvedId,
+                    have + "/" + input.qty,
+                    null));
             }
 
             if (recipe.ResolvedToolId > 0)
             {
                 var hasTool = Utils.CountItem(player, recipe.ResolvedToolId) > 0;
-                body += (hasTool ? Ui.Ok("  ✓ ") : Ui.Bad("  ✕ "))
-                        + "Outil requis : " + Utils.ItemName(recipe.ResolvedToolId)
-                        + Ui.Dim(hasTool ? "  (en main)" : "  (non consommé, juste requis)") + "\n";
+                if (!hasTool) { canStart = false; }
+
+                entries.Add(new Ui.MenuEntry(
+                    (hasTool ? Ui.Ok("✓ ") : Ui.Bad("✕ ")) + "Outil : "
+                    + Utils.ItemName(recipe.ResolvedToolId) + Ui.Dim("  (non consommé)"),
+                    recipe.ResolvedToolId,
+                    hasTool ? "ok" : "requis",
+                    null));
             }
 
-            // Résultat bien visible
-            body += "\n" + Ui.Accent("Vous obtenez : " + recipe.output.qty + " × " + Utils.ItemName(recipe.output.ResolvedId));
-            body += "\nDurée : " + FormatDuration(EffectiveTime(recipe));
-
-            var failPct = Mathf.RoundToInt(EffectiveFailure(recipe) * 100f);
-            body += "\nRisque d'échec : " + (failPct > 0 ? Ui.Bad(failPct + "%") : Ui.Ok("0%"));
-            body += "\n\n" + Ui.Dim("⚠ Les ressources sont prélevées dès le début. Ne vous éloignez pas.");
-
-            var canStart = HasAllInputs(player, recipe);
-            var entries = new List<Ui.MenuEntry>();
-
+            // Le bouton d'action est en tete : c'est ce que le joueur cherche en priorite.
             if (canStart)
             {
-                entries.Add(new Ui.MenuEntry(Ui.Ok("▶ Lancer la fabrication"),
-                    recipe.output.ResolvedId, "",
-                    () => Start(player, recipe, anchor)));
+                entries.Insert(0, new Ui.MenuEntry(Ui.Ok("▶ FABRIQUER"),
+                    recipe.output.ResolvedId, "", () => Start(player, recipe, anchor)));
             }
             else
             {
-                entries.Add(new Ui.MenuEntry(Ui.Dim("✕ Ressources insuffisantes"),
+                entries.Insert(0, new Ui.MenuEntry(Ui.Bad("✕ Ressources insuffisantes"),
                     recipe.output.ResolvedId, "", null));
             }
 
-            entries.Add(new Ui.MenuEntry("← Retour à la liste",
+            entries.Add(new Ui.MenuEntry("← Retour à la liste", 0, "",
                 () => OpenMenu(player, title, header, recipes, anchor)));
 
             Ui.Menu(player, recipe.name, body, entries, "Fermer", null);
