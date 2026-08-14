@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "E6VwXzjrGOU=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\totor\\Downloads\\archive-2026-07-10T203233+0200\\freshperf\\PostApo\\PostApo.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\totor\\.nuget\\packages\\microsoft.netframework.referenceassemblies\\1.0.3\\microsoft.netframework.referenceassemblies.1.0.3.nupkg.sha512",
+    "C:\\Users\\totor\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net472\\1.0.3\\microsoft.netframework.referenceassemblies.net472.1.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}

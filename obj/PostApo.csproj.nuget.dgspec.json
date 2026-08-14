@@ -1,0 +1,66 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\totor\\Downloads\\archive-2026-07-10T203233+0200\\freshperf\\PostApo\\PostApo.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\totor\\Downloads\\archive-2026-07-10T203233+0200\\freshperf\\PostApo\\PostApo.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\totor\\Downloads\\archive-2026-07-10T203233+0200\\freshperf\\PostApo\\PostApo.csproj",
+        "projectName": "PostApo",
+        "projectPath": "C:\\Users\\totor\\Downloads\\archive-2026-07-10T203233+0200\\freshperf\\PostApo\\PostApo.csproj",
+        "packagesPath": "C:\\Users\\totor\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\totor\\Downloads\\archive-2026-07-10T203233+0200\\freshperf\\PostApo\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\totor\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net472"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net472": {
+            "framework": "net472",
+            "targetAlias": "net472",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "10.0.300"
+      },
+      "frameworks": {
+        "net472": {
+          "framework": "net472",
+          "targetAlias": "net472",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.3, )",
+              "autoReferenced": true
+            },
+            "Microsoft.NETFramework.ReferenceAssemblies.net472": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.3, )"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

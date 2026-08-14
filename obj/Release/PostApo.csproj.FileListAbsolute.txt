@@ -1,0 +1,7 @@
+C:\Users\totor\Downloads\archive-2026-07-10T203233+0200\freshperf\PostApo\obj\Release\PostApo.csproj.AssemblyReference.cache
+C:\Users\totor\Downloads\archive-2026-07-10T203233+0200\freshperf\PostApo\obj\Release\PostApo.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\totor\Downloads\archive-2026-07-10T203233+0200\freshperf\PostApo\obj\Release\PostApo.csproj.CoreCompileInputs.cache
+C:\Users\totor\Downloads\archive-2026-07-10T203233+0200\freshperf\PostApo\bin\Release\README.md
+C:\Users\totor\Downloads\archive-2026-07-10T203233+0200\freshperf\PostApo\obj\Release\PostApo.dll
+C:\Users\totor\Downloads\archive-2026-07-10T203233+0200\freshperf\PostApo\bin\Release\PostApo.dll
+C:\Users\totor\Downloads\archive-2026-07-10T203233+0200\freshperf\PostApo\bin\Release\SETUP.md
