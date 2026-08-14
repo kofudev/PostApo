@@ -248,6 +248,16 @@ namespace PostApo.District
         /// <summary>Libellés lisibles des permissions : accessible depuis PostApoPlugin pour l'audit staff.</summary>
         public static string LabelPublic(string permission) { return Label(permission); }
 
+        /// <summary>
+        /// Seules ces deux permissions sont reellement appliquees par le jeu : elles pilotent la
+        /// co-propriete native (<c>LifeArea</c> / <c>LifeVehicle</c>). Les autres sont conservees
+        /// et affichees, mais Nova-Life n'expose aucun hook annulable pour les faire respecter.
+        /// </summary>
+        private static bool IsEnforced(string permission)
+        {
+            return permission == Perm.AccesTerrain || permission == Perm.UtiliserVehicule;
+        }
+
         /// <summary>Libellés lisibles des permissions : « ouvrirCoffre » ne parle a personne en jeu.</summary>
         private static string Label(string permission)
         {
