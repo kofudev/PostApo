@@ -1,11 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace PostApo.District
 {
-    /// <summary>
-    /// Contenu de <c>districts.json</c>. C'est la source de verite unique de l'appartenance :
-    /// aucun autre fichier ne duplique la liste des membres.
-    /// </summary>
     public sealed class DistrictData
     {
         public List<District> districts = DefaultDistricts();

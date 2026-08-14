@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,15 +14,6 @@ using UnityEngine;
 
 namespace PostApo.Vehicle
 {
-    /// <summary>
-    /// Filiere vehicule : ateliers de reconstruction, chantiers multi-etapes, deblocage progressif
-    /// des paliers, puis creation d'un vrai vehicule persistant.
-    ///
-    /// La creation finale s'appuie sur l'API native :
-    /// <c>LifeDB.CreateVehicle</c> (insertion en base) puis <c>VehiclesManager.LoadNewVehicle</c>
-    /// et <c>SpawnVehicle</c>. Le vehicule obtenu est un vehicule de jeu normal, immatricule,
-    /// possede et sauvegarde — pas un item symbolique.
-    /// </summary>
     public sealed class VehicleSystem
     {
         private readonly PostApoPlugin _plugin;
@@ -138,10 +129,6 @@ namespace PostApo.Vehicle
             return _data.blueprints.FirstOrDefault(b => b != null && b.modelId == modelId);
         }
 
-        /// <summary>
-        /// Decrit ce qu'ouvre un item s'il s'agit d'un plan, sinon null.
-        /// Sert a expliquer une trouvaille au moment ou elle tombe.
-        /// </summary>
         public string PlanDescription(int itemId)
         {
             if (itemId <= 0) { return null; }
@@ -157,10 +144,6 @@ namespace PostApo.Vehicle
                    + names;
         }
 
-        /// <summary>
-        /// Panneau « mes plans » : ce que le joueur possede, ce que chaque plan ouvre, et le
-        /// rappel que le plan lui appartient mais sert au district.
-        /// </summary>
         public void OpenPlans(Player player)
         {
             if (player == null) { return; }
@@ -220,13 +203,13 @@ namespace PostApo.Vehicle
                         + "\n" + Ui.Dim("Tapez /epaves pour trouver ou fouiller.");
             }
 
+            body += "\n" + PostApoPlugin.Signature;
+
             Ui.Menu(player, "Mes plans", body, entries, "Fermer", null);
         }
 
         public int UnlockedTier(int districtId) { return _projects.TierOf(districtId); }
         public int CompletedCount(int districtId) { return _projects.CompletedOf(districtId); }
-
-        // ------------------------------------------------------------------ ateliers
 
         public VehicleWorkshop AddWorkshop(int districtId, Vector3 position, string name)
         {
@@ -276,8 +259,6 @@ namespace PostApo.Vehicle
             var district = _plugin.Districts.DistrictOf(player);
             return district != null && district.id == districtId;
         }
-
-        // ------------------------------------------------------------------ menu atelier
 
         private void OpenWorkshop(Player player, VehicleWorkshop workshop)
         {
@@ -334,7 +315,6 @@ namespace PostApo.Vehicle
             Ui.Menu(player, workshop.name, body, entries, "Fermer", null);
         }
 
-        /// <summary>Explique la boucle complete : sans ca, un joueur ne devine pas par ou commencer.</summary>
         private void OpenHelp(Player player)
         {
             var body =
@@ -355,7 +335,8 @@ namespace PostApo.Vehicle
                 + "Une etape ratee coute les materiaux de l'etape, jamais le chantier.\n\n"
                 + Ui.Accent("6. Le vehicule sort de l'atelier") + "\n"
                 + "Il est immatricule au nom de celui qui a ouvert le chantier, "
-                + "et votre district debloque le palier suivant.";
+                + "et votre district debloque le palier suivant."
+                + "\n\n" + PostApoPlugin.Signature;
 
             Ui.Info(player, "Guide de reconstruction", body);
         }
@@ -372,10 +353,6 @@ namespace PostApo.Vehicle
             }
         }
 
-        /// <summary>
-        /// Catalogue navigable : un palier par page, chaque véhicule cliquable pour voir le détail
-        /// complet de ses ressources. C'est le point d'entrée pour « quoi construire et avec quoi ».
-        /// </summary>
         private void OpenCatalog(Player player, PostApo.District.District district, int tierPage)
         {
             var unlocked = UnlockedTier(district.id);
@@ -409,7 +386,6 @@ namespace PostApo.Vehicle
                 var captured = blueprint;
                 var held = Utils.CountItem(player, captured.planItemId);
 
-                // Calcul rapide du total de ressources pour l'afficher en résumé
                 var totalItems = 0;
                 foreach (var stage in captured.stages)
                     foreach (var inp in stage.inputs)
@@ -438,10 +414,6 @@ namespace PostApo.Vehicle
             Ui.Menu(player, "Catalogue", body, entries, "Fermer", null);
         }
 
-        /// <summary>
-        /// Fiche complète d'un véhicule : toutes les étapes, tous les composants avec ce que le
-        /// joueur possède déjà, et le total agrégé. Répond à « on ne sait pas les ressources qu'il faut ».
-        /// </summary>
         private void OpenBlueprintDetail(Player player, PostApo.District.District district,
                                          VehicleBlueprint blueprint, int tierPage)
         {
@@ -449,8 +421,6 @@ namespace PostApo.Vehicle
             var unlocked = UnlockedTier(district.id);
             var locked = blueprint.tier > unlocked;
 
-            // Vue de navigation plutot que pave de texte : un vehicule de palier 5 compte
-            // sept etapes et plus de vingt lignes de materiaux, illisibles d'un bloc.
             var body = Ui.Dim("Palier " + blueprint.tier + " — " + TierName(blueprint.tier)
                               + " · " + blueprint.stages.Count + " étapes") + "\n"
                        + "Plan : " + Ui.Accent(blueprint.planLabel) + "  "
@@ -485,7 +455,6 @@ namespace PostApo.Vehicle
             Ui.Menu(player, blueprint.name, body, entries, "Fermer", null);
         }
 
-        /// <summary>Ressources d'une seule etape, une ligne par materiau.</summary>
         private void OpenStageDetail(Player player, PostApo.District.District district,
                                      VehicleBlueprint blueprint, int index, int tierPage)
         {
@@ -518,7 +487,6 @@ namespace PostApo.Vehicle
             Ui.Menu(player, "Étape " + (index + 1) + "/" + blueprint.stages.Count, body, entries, "Fermer", null);
         }
 
-        /// <summary>Somme des materiaux de toutes les etapes : « combien au total » en une vue.</summary>
         private void OpenBlueprintTotals(Player player, PostApo.District.District district,
                                          VehicleBlueprint blueprint, int tierPage)
         {
@@ -669,8 +637,6 @@ namespace PostApo.Vehicle
             OpenProject(player, project);
         }
 
-        // ------------------------------------------------------------------ chantiers
-
         private void OpenProjectList(Player player, VehicleWorkshop workshop, PostApo.District.District district)
         {
             var projects = _projects.projects
@@ -700,13 +666,6 @@ namespace PostApo.Vehicle
                 "Retour", () => OpenWorkshop(player, workshop));
         }
 
-        /// <summary>
-        /// Retrouve l'instance vivante d'un chantier.
-        ///
-        /// Un <c>/postapo reload</c> remplace la liste en memoire : un menu ouvert ou une coroutine
-        /// en cours detiendrait alors un objet orphelin, et ses modifications seraient perdues au
-        /// prochain enregistrement. On repasse donc systematiquement par l'id.
-        /// </summary>
         private VehicleProject Live(VehicleProject project)
         {
             if (project == null) { return null; }
@@ -748,8 +707,6 @@ namespace PostApo.Vehicle
                 entries.Add(new Ui.MenuEntry(Ui.Dim("⏳ Travaux en cours..."), 0, "", null));
             }
 
-            // Chaque materiau est une ligne avec son icone, sa quantite livree et ce que le joueur
-            // porte : il voit d'un coup d'oeil quoi aller chercher.
             foreach (var input in stage.inputs)
             {
                 var need = input.qty;
@@ -821,10 +778,6 @@ namespace PostApo.Vehicle
             return Mathf.Clamp01(chance);
         }
 
-        /// <summary>
-        /// Livre tout ce que le joueur porte et qui manque encore. Les livraisons sont partielles
-        /// et cumulatives : plusieurs joueurs peuvent alimenter le meme chantier.
-        /// </summary>
         private void Deliver(Player player, VehicleProject project)
         {
             var prefix = _plugin.Prefix;
@@ -907,7 +860,6 @@ namespace PostApo.Vehicle
 
             var stage = blueprint.stages[project.stageIndex];
 
-            // Re-verification serveur : l'etat a pu changer depuis l'ouverture du menu.
             foreach (var input in stage.inputs)
             {
                 if (project.DeliveredOf(input.ResolvedId) < input.qty)
@@ -917,8 +869,6 @@ namespace PostApo.Vehicle
                 }
             }
 
-            // Derniere etape : l'immatriculation exige un proprietaire en base. On refuse de lancer
-            // les travaux plutot que de perdre le chantier a l'arrivee.
             var isFinal = project.stageIndex == blueprint.stages.Count - 1;
             if (isFinal && OwnerCharacterId(project) <= 0)
             {
@@ -938,7 +888,6 @@ namespace PostApo.Vehicle
             host.StartCoroutine(StageRoutine(player, project, blueprint, stage));
         }
 
-        /// <summary>Identifiant de personnage du proprietaire, en ligne ou connu du district. 0 si introuvable.</summary>
         private int OwnerCharacterId(VehicleProject project)
         {
             var owner = Utils.FindOnlineBySteamId(project.ownerSteamId);
@@ -961,8 +910,6 @@ namespace PostApo.Vehicle
 
             Utils.Center(player, project.modelName, stage.name + " — travaux en cours", 4f);
 
-            // Les travaux avancent meme si le joueur s'eloigne : un chantier est un ouvrage collectif,
-            // pas une action maintenue. Seul le temps compte.
             while (elapsed < total)
             {
                 yield return wait;
@@ -978,14 +925,12 @@ namespace PostApo.Vehicle
         {
             var prefix = _plugin.Prefix;
 
-            // Le chantier a pu etre recharge ou abandonne pendant les travaux.
             project = Live(project);
             if (project == null) { return; }
             project.Working = false;
 
             if (!success)
             {
-                // L'etape rate : les materiaux de l'etape sont perdus, mais le chantier survit.
                 project.ResetStageDeliveries();
                 project.lastActivityAt = Utils.NowUnix();
                 Save();
@@ -1015,13 +960,9 @@ namespace PostApo.Vehicle
                 return;
             }
 
-            // Derniere etape : on fabrique le vehicule pour de vrai. Le chantier n'est ni avance ni
-            // vide tant que l'immatriculation n'a pas abouti — un echec technique doit rester
-            // rejouable, pas detruire des heures de travail collectif.
             FinishProject(project, blueprint);
         }
 
-        /// <summary>Informe tous les membres du district connectes : un chantier est une affaire collective.</summary>
         private void Announce(VehicleProject project, string message)
         {
             var district = _plugin.Districts.Get(project.districtId);
@@ -1033,8 +974,6 @@ namespace PostApo.Vehicle
                 if (online != null) { Utils.Send(online, message); }
             }
         }
-
-        // ------------------------------------------------------------------ creation du vehicule
 
         private void FinishProject(VehicleProject project, VehicleBlueprint blueprint)
         {
@@ -1055,8 +994,6 @@ namespace PostApo.Vehicle
 
             if (characterId <= 0)
             {
-                // Le chantier reste intact, materiaux livres compris : il suffira de relancer
-                // les travaux quand le proprietaire sera connecte.
                 Announce(project, prefix + Ui.Bad("✕ " + project.modelName
                     + " est pret, mais " + project.ownerName + " doit etre connecte pour l'immatriculer."));
                 yield break;
@@ -1095,7 +1032,6 @@ namespace PostApo.Vehicle
                 yield break;
             }
 
-            // Attente non bloquante de la tache asynchrone de la base (~10 s a 60 FPS).
             var guard = 0;
             while (!task.IsCompleted && guard < 600)
             {
@@ -1143,7 +1079,6 @@ namespace PostApo.Vehicle
                                                   + "Le staff peut le sortir du garage."));
             }
 
-            // Deblocage du palier suivant pour le district.
             var current = UnlockedTier(project.districtId);
             var unlockedNew = false;
             if (project.tier >= current && current < 5)
@@ -1154,8 +1089,6 @@ namespace PostApo.Vehicle
 
             _projects.AddCompleted(project.districtId);
 
-            // Le vehicule existe desormais en base : le chantier doit disparaitre meme si la liste
-            // a ete rechargee entre-temps, sous peine de pouvoir etre termine deux fois.
             _projects.projects.Remove(Live(project) ?? project);
             Save();
 
@@ -1174,8 +1107,6 @@ namespace PostApo.Vehicle
                 true);
         }
 
-        // ------------------------------------------------------------------ abandon
-
         private void ConfirmAbandon(Player player, VehicleProject project)
         {
             Ui.Confirm(player, "Abandonner #" + project.id,
@@ -1192,8 +1123,6 @@ namespace PostApo.Vehicle
                 },
                 () => OpenProject(player, project));
         }
-
-        // ------------------------------------------------------------------ administration
 
         public void SetTier(int districtId, int tier)
         {

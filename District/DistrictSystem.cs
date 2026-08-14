@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Life;
@@ -11,17 +11,12 @@ using UnityEngine;
 
 namespace PostApo.District
 {
-    /// <summary>
-    /// Districts : appartenance, grades, permissions, base principale, points de craft specialises
-    /// et partage des proprietes / vehicules du proprietaire.
-    /// </summary>
     public sealed class DistrictSystem
     {
         private readonly PostApoPlugin _plugin;
         private readonly JsonStore<DistrictData> _store;
         private DistrictData _data;
 
-        /// <summary>Gestion des grades en jeu, ouverte depuis le menu du district.</summary>
         public GradeMenu Grades { get; private set; }
 
         public DistrictSystem(PostApoPlugin plugin, string root)
@@ -55,8 +50,6 @@ namespace PostApo.District
             return _store.Save(_data);
         }
 
-        // ------------------------------------------------------------------ recherche
-
         public District Get(int id)
         {
             return _data.districts.FirstOrDefault(d => d != null && d.id == id);
@@ -70,7 +63,6 @@ namespace PostApo.District
                 d => d != null && string.Equals(d.name, wanted, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>District du joueur, ou null s'il n'est membre d'aucun district.</summary>
         public District DistrictOf(string steamId)
         {
             if (string.IsNullOrWhiteSpace(steamId)) { return null; }
@@ -87,12 +79,6 @@ namespace PostApo.District
             return _data.districts.Where(d => d != null && d.HasSpecialite(specialite));
         }
 
-        // ------------------------------------------------------------------ appartenance
-
-        /// <summary>
-        /// Ajoute un joueur au district. Un joueur ne peut appartenir qu'a un seul district :
-        /// s'il en avait deja un, il en est retire proprement (co-proprietes comprises).
-        /// </summary>
         public bool Join(Player player, District district, out string error)
         {
             error = null;
@@ -119,7 +105,6 @@ namespace PostApo.District
                 joinedAt = Utils.NowUnix(),
             });
 
-            // Premier arrivant : il devient proprietaire du district s'il n'y en a pas.
             if (string.IsNullOrWhiteSpace(district.ownerSteamId))
             {
                 district.ownerSteamId = steamId;
@@ -156,7 +141,6 @@ namespace PostApo.District
 
             if (district.IsOwner(steamId))
             {
-                // Le proprietaire part : le membre au grade le plus eleve reprend le district.
                 var successor = district.members
                     .OrderByDescending(m => { var g = district.FindGrade(m.gradeId); return g != null ? g.rank : 0; })
                     .FirstOrDefault();
@@ -175,7 +159,6 @@ namespace PostApo.District
             return true;
         }
 
-        /// <summary>Met a jour le characterId d'un membre : il change a chaque personnage recree.</summary>
         public void RefreshMemberIdentity(Player player)
         {
             var steamId = Utils.SteamId(player);
@@ -207,12 +190,6 @@ namespace PostApo.District
             }
         }
 
-        // ------------------------------------------------------------------ permissions
-
-        /// <summary>
-        /// Resolution d'une permission, dans l'ordre : proprietaire &gt; surcharge joueur &gt; grade.
-        /// <paramref name="scope"/> optionnel = identifiant de terrain ou de vehicule.
-        /// </summary>
         public bool HasPermission(Player player, string permission, string scopeKind = null, string scope = null)
         {
             var steamId = Utils.SteamId(player);
@@ -229,7 +206,6 @@ namespace PostApo.District
         {
             if (district == null || string.IsNullOrEmpty(steamId) || string.IsNullOrEmpty(permission)) { return false; }
 
-            // Le proprietaire dispose de tout, sans exception.
             if (district.IsOwner(steamId)) { return true; }
 
             var member = district.FindMember(steamId);
@@ -238,7 +214,6 @@ namespace PostApo.District
             var isTerrain = string.Equals(scopeKind, "terrain", StringComparison.OrdinalIgnoreCase);
             var isVehicle = string.Equals(scopeKind, "vehicule", StringComparison.OrdinalIgnoreCase);
 
-            // 1. surcharge propre au joueur
             PlayerOverride overrides;
             if (district.playerOverrides.TryGetValue(steamId, out overrides) && overrides != null)
             {
@@ -256,7 +231,6 @@ namespace PostApo.District
                 }
             }
 
-            // 2. grade
             var grade = district.FindGrade(member.gradeId);
             if (grade == null) { return false; }
 
@@ -281,19 +255,6 @@ namespace PostApo.District
             return perScope.TryGetValue(permission, out value) ? (bool?)value : null;
         }
 
-        // ------------------------------------------------------------------ partage natif
-
-        /// <summary>
-        /// Aligne les co-proprietaires natifs des terrains et vehicules du proprietaire du district
-        /// sur la liste des membres autorises.
-        ///
-        /// C'est le seul mecanisme d'application reellement expose par Nova-Life : <see cref="LifeArea"/>
-        /// et <see cref="LifeVehicle"/> exposent <c>AddCoOwner</c>/<c>DeleteCoOwner</c>, et le jeu
-        /// verifie lui-meme ces droits sur les portes, coffres et vehicules. Il n'existe en revanche
-        /// aucun evenement annulable permettant de distinguer « ouvrir le coffre » de « poser un item » :
-        /// ces drapeaux restent donc configurables et sont appliques par le plugin sur ses propres
-        /// actions (voir README, section Limites).
-        /// </summary>
         public void SyncSharedProperties(District district)
         {
             if (district == null) { return; }
@@ -435,8 +396,6 @@ namespace PostApo.District
             }
         }
 
-        // ------------------------------------------------------------------ base
-
         public bool SetBase(District district, Vector3 position)
         {
             if (district == null) { return false; }
@@ -451,7 +410,6 @@ namespace PostApo.District
             return Save();
         }
 
-        /// <summary>Teleporte le joueur vers la base de son district si elle existe et s'il en a le droit.</summary>
         public void TeleportToBase(Player player, District district, bool checkPermission)
         {
             if (player == null || district == null) { return; }
@@ -482,8 +440,6 @@ namespace PostApo.District
             }
         }
 
-        // ------------------------------------------------------------------ points de craft
-
         public IEnumerable<InteractionPoint> CraftPoints()
         {
             foreach (var district in _data.districts)
@@ -502,8 +458,6 @@ namespace PostApo.District
                         Key = "district-craft-" + district.id + "-" + point.id,
                         Position = point.position.ToVector3(),
 
-                        // Le staff voit tous les points, sinon il lui est impossible de verifier
-                        // ce qu'il vient de poser pour un district dont il n'est pas membre.
                         VisibleTo = p => !capturedPoint.membersOnly
                                          || IsMemberOf(p, capturedDistrict)
                                          || Utils.IsStaff(p, _plugin.Config.staffLevelMin),
@@ -547,15 +501,13 @@ namespace PostApo.District
 
             var recipes = _plugin.Craft.RecipesForSpecialite(point.specialite).ToList();
             var member = IsMemberOf(player, district);
-            var ready = recipes.Count(r => _plugin.Craft.HasAllInputs(player, r));
 
-            // On affiche toujours a qui appartient l'atelier : un joueur ne doit jamais se demander
-            // sur quel district il vient de tomber.
             var title = Utils.Sanitize(district.name, 40);
-            var header = Ui.Accent(district.name) + "\n"
-                         + Ui.Dim("Atelier specialise : " + point.specialite) + "\n"
+
+            var header = Ui.Accent("Atelier « " + point.specialite + " »") + "\n"
+                         + Ui.Dim(district.name + " — " + recipes.Count + " recette(s) exclusives a cette specialite") + "\n"
                          + (member
-                             ? Ui.Ok("Vous en etes membre.")
+                             ? Ui.Ok("Membre du district.")
                              : Ui.Bad("Vous n'etes pas de ce district — acces staff."));
 
             _plugin.Craft.OpenMenu(player, title, header, recipes, point.position.ToVector3());
@@ -593,8 +545,6 @@ namespace PostApo.District
             district.craftPoints.Remove(point);
             return Save();
         }
-
-        // ------------------------------------------------------------------ creation / suppression
 
         public bool Create(int id, string name, out string error)
         {

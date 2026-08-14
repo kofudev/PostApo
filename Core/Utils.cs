@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Life;
@@ -8,19 +8,12 @@ using UnityEngine;
 
 namespace PostApo.Core
 {
-    /// <summary>
-    /// Helpers bas niveau autour de l'API native Nova-Life.
-    /// Toutes les methodes sont defensives : elles ne lancent jamais d'exception vers l'appelant.
-    /// </summary>
     public static class Utils
     {
         public const string Tag = "[PostApo]";
 
         private static readonly System.Random Rng = new System.Random();
 
-        // ---------------------------------------------------------------- joueurs
-
-        /// <summary>Identifiant unique persistant du joueur (SteamID). Chaine vide si indisponible.</summary>
         public static string SteamId(Player player)
         {
             try
@@ -73,7 +66,6 @@ namespace PostApo.Core
             return OnlinePlayers().FirstOrDefault(p => string.Equals(SteamId(p), wanted, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>Recherche un joueur connecte par SteamID, identifiant de personnage ou fragment de nom.</summary>
         public static Player FindOnline(string query)
         {
             if (string.IsNullOrWhiteSpace(query)) { return null; }
@@ -92,13 +84,6 @@ namespace PostApo.Core
             return OnlinePlayers().FirstOrDefault(p => Name(p).IndexOf(q, StringComparison.OrdinalIgnoreCase) >= 0);
         }
 
-        /// <summary>
-        /// Statut staff, base <b>uniquement</b> sur le niveau admin du compte.
-        ///
-        /// On n'utilise deliberement ni <c>isAuthAdmin</c> ni <c>IsAdmin</c> : leur semantique
-        /// exacte n'est pas documentee, et le staff contourne toutes les permissions de district.
-        /// Un seuil numerique verifiable vaut mieux qu'un drapeau dont on ignore la portee.
-        /// </summary>
         public static bool IsStaff(Player player, int minLevel)
         {
             try
@@ -108,8 +93,6 @@ namespace PostApo.Core
             }
             catch { return false; }
         }
-
-        // ---------------------------------------------------------------- position / teleport
 
         public static Vector3 Position(Player player)
         {
@@ -146,8 +129,6 @@ namespace PostApo.Core
             catch { return float.MaxValue; }
         }
 
-        // ---------------------------------------------------------------- messages
-
         public static void Send(Player player, string message)
         {
             try
@@ -158,11 +139,6 @@ namespace PostApo.Core
             catch { }
         }
 
-        /// <summary>
-        /// Message au centre de l'ecran. Les deux lignes sont tronquees : le texte central ne se
-        /// met pas a la ligne proprement et deborde en travers de l'ecran au-dela d'une trentaine
-        /// de caracteres.
-        /// </summary>
         public static void Center(Player player, string title, string subtitle, float seconds)
         {
             try
@@ -177,15 +153,12 @@ namespace PostApo.Core
             catch { }
         }
 
-        // ---------------------------------------------------------------- inventaire
-
         public static Inventory InventoryOf(Player player)
         {
             try { return player != null && player.setup != null ? player.setup.inventory : null; }
             catch { return null; }
         }
 
-        /// <summary>Quantite totale d'un item dans l'inventaire du joueur (tous slots confondus).</summary>
         public static int CountItem(Player player, int itemId)
         {
             try
@@ -249,9 +222,6 @@ namespace PostApo.Core
             }
         }
 
-        // ---------------------------------------------------------------- items du serveur
-
-        /// <summary>Resout un item par slug puis par id. Retourne 0 si aucun item valide.</summary>
         public static int ResolveItemId(string slug, int fallbackId)
         {
             try
@@ -267,7 +237,7 @@ namespace PostApo.Core
                 {
                     var byId = manager.GetItem(fallbackId);
                     if (byId != null) { return fallbackId; }
-                    return 0; // id configure mais inconnu du serveur
+                    return 0;
                 }
 
                 return fallbackId > 0 ? fallbackId : 0;
@@ -275,11 +245,6 @@ namespace PostApo.Core
             catch { return fallbackId > 0 ? fallbackId : 0; }
         }
 
-        /// <summary>
-        /// Le catalogue d'items est peuple par le jeu apres le chargement des plugins : tant qu'il
-        /// est vide, aucun slug ni id ne peut etre valide, et les modules doivent differer leur
-        /// resolution plutot que de tout desactiver a tort.
-        /// </summary>
         public static bool ItemsReady()
         {
             try
@@ -290,13 +255,6 @@ namespace PostApo.Core
             catch { return false; }
         }
 
-        /// <summary>
-        /// Noms de secours des items utilises par le plugin, tires de la feuille d'IDs officielle.
-        ///
-        /// <see cref="Item.itemName"/> ne contient pas un libelle mais une <b>cle de localisation</b>
-        /// du type « 1089/Name ». Quand la traduction n'est pas resolvable cote serveur (headless),
-        /// afficher la cle brute rend toutes les recettes illisibles : cette table prend le relais.
-        /// </summary>
         private static readonly Dictionary<int, string> KnownNames = new Dictionary<int, string>
         {
             { 3, "Bougie d'allumage" },   { 5, "Batterie" },            { 9, "Pioche" },
@@ -318,7 +276,6 @@ namespace PostApo.Core
         private static readonly Dictionary<int, string> NameCache = new Dictionary<int, string>();
         private static readonly Dictionary<int, int> IconCache = new Dictionary<int, int>();
 
-        /// <summary>Nom lisible d'un item, jamais une cle de localisation.</summary>
         public static string ItemName(int itemId)
         {
             if (itemId <= 0) { return "objet inconnu"; }
@@ -347,10 +304,8 @@ namespace PostApo.Core
             }
             catch { }
 
-            // 1. Le libelle est deja lisible (serveur avec localisation resolue).
             if (IsReadable(raw)) { return raw.Trim(); }
 
-            // 2. Tentative de traduction de la cle.
             if (!string.IsNullOrWhiteSpace(raw))
             {
                 foreach (var candidate in Translate(raw))
@@ -359,7 +314,6 @@ namespace PostApo.Core
                 }
             }
 
-            // 3. Table de secours.
             string known;
             if (KnownNames.TryGetValue(itemId, out known)) { return known; }
 
@@ -376,7 +330,6 @@ namespace PostApo.Core
             return results;
         }
 
-        /// <summary>Une cle de localisation ressemble a « 1089/Name » : slash, ou vide, ou « NAME ».</summary>
         private static bool IsReadable(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) { return false; }
@@ -385,17 +338,10 @@ namespace PostApo.Core
             if (trimmed.Equals("NAME", StringComparison.OrdinalIgnoreCase)) { return false; }
             if (trimmed.IndexOf('/') >= 0) { return false; }
 
-            // Un nom purement numerique est un identifiant, pas un libelle.
             int ignored;
             return !int.TryParse(trimmed, out ignored);
         }
 
-        /// <summary>
-        /// Index d'icone attendu par <c>UIPanel.AddTabLine(nom, prix, icone, action)</c>.
-        ///
-        /// Ce parametre n'est <b>pas</b> un identifiant d'item : c'est la position de l'icone dans
-        /// <c>LifeManager.newIcons</c>. Passer un item id n'affiche donc rien.
-        /// </summary>
         public static int IconOf(int itemId)
         {
             if (itemId <= 0) { return -1; }
@@ -430,7 +376,6 @@ namespace PostApo.Core
             return index;
         }
 
-        /// <summary>Vide les caches de noms et d'icones (appele au rechargement des items).</summary>
         public static void ClearItemCaches()
         {
             lock (NameCache) { NameCache.Clear(); }
@@ -475,8 +420,6 @@ namespace PostApo.Core
             return results;
         }
 
-        // ---------------------------------------------------------------- divers
-
         public static int RandomInt(int minInclusive, int maxInclusive)
         {
             if (maxInclusive < minInclusive) { maxInclusive = minInclusive; }
@@ -499,7 +442,6 @@ namespace PostApo.Core
             return (long)(DateTime.UtcNow - new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)).TotalSeconds;
         }
 
-        /// <summary>Nettoie une chaine destinee a un titre de panel ou un log (evite les balises injectees).</summary>
         public static string Sanitize(string value, int maxLength)
         {
             if (string.IsNullOrEmpty(value)) { return string.Empty; }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,13 +10,6 @@ using UnityEngine;
 
 namespace PostApo.Arrival
 {
-    /// <summary>
-    /// Parcours du nouveau joueur : apparition aleatoire, presentation du monde, choix du district,
-    /// inscription au district, recompense de bienvenue, puis proposition de rejoindre la base.
-    ///
-    /// Chaque etape est independante et re-entrante : une deconnexion en cours de parcours ne
-    /// laisse jamais le joueur dans un etat incoherent.
-    /// </summary>
     public sealed class ArrivalSystem
     {
         private readonly PostApoPlugin _plugin;
@@ -26,7 +19,6 @@ namespace PostApo.Arrival
         private ArrivalData _arrival;
         private WelcomeData _welcome;
 
-        /// <summary>Joueurs actuellement dans le parcours, pour ne pas le lancer deux fois.</summary>
         private readonly HashSet<string> _inProgress = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public ArrivalSystem(PostApoPlugin plugin, string root)
@@ -55,8 +47,6 @@ namespace PostApo.Arrival
         private bool SaveArrival() { return _arrivalStore.Save(_arrival); }
         private bool SaveWelcome() { return _welcomeStore.Save(_welcome); }
 
-        // ------------------------------------------------------------------ etat joueur
-
         public bool IsInitialized(string steamId)
         {
             return !string.IsNullOrEmpty(steamId)
@@ -76,7 +66,6 @@ namespace PostApo.Arrival
             SaveArrival();
         }
 
-        /// <summary>Reinitialise un joueur (commande staff) : il refera tout le parcours.</summary>
         public bool ResetPlayer(string steamId, bool alsoReward)
         {
             if (string.IsNullOrEmpty(steamId)) { return false; }
@@ -94,8 +83,6 @@ namespace PostApo.Arrival
             SaveArrival();
             return removed;
         }
-
-        // ------------------------------------------------------------------ declenchement
 
         public void OnSpawn(Player player)
         {
@@ -165,8 +152,6 @@ namespace PostApo.Arrival
             }
         }
 
-        // ------------------------------------------------------------------ etape 1 : apparition
-
         private void TeleportToRandomPoint(Player player)
         {
             var points = _arrival.arrivalPoints;
@@ -188,8 +173,6 @@ namespace PostApo.Arrival
             }
         }
 
-        // ------------------------------------------------------------------ etape 2 : presentation
-
         private void ShowIntroduction(Player player, string steamId)
         {
             var lines = _plugin.Config.arrival.introductionText ?? new List<string>();
@@ -199,15 +182,11 @@ namespace PostApo.Arrival
                 return;
             }
 
-            // La pagination est calculee sur la longueur reelle du texte : un panel ne tient
-            // qu'une dizaine de lignes, et le texte configurable peut etre reecrit librement.
             Ui.LongText(player, _plugin.Config.arrival.introTitle,
                 string.Join("\n", lines.ToArray()),
                 "J'ai compris",
                 () => AskDistrict(player, steamId));
         }
-
-        // ------------------------------------------------------------------ etape 3 : choix du district
 
         private void AskDistrict(Player player, string steamId)
         {
@@ -279,19 +258,12 @@ namespace PostApo.Arrival
             _plugin.Webhook.LogDistrictSelection(Utils.Name(player), steamId, district.name);
             Utils.Send(player, _plugin.Prefix + Ui.Ok("✓ Vous avez rejoint le " + district.name + "."));
 
-            // Le parcours est desormais considere comme fait : plus de rejeu possible.
             MarkInitialized(steamId);
 
             var rewards = GiveWelcomeRewards(player, steamId);
             AskBaseTeleport(player, steamId, district, rewards);
         }
 
-        // ------------------------------------------------------------------ etape 4 : recompense
-
-        /// <summary>
-        /// Verse la recompense de bienvenue. Idempotent : un joueur deja recompense ne recoit rien
-        /// et la tentative est journalisee.
-        /// </summary>
         public List<string> GiveWelcomeRewards(Player player, string steamId)
         {
             var given = new List<string>();
@@ -307,8 +279,6 @@ namespace PostApo.Arrival
             var rewards = _plugin.Config.welcomeRewards ?? new List<ItemStack>();
             if (rewards.Count == 0) { return given; }
 
-            // Marquage avant distribution : meme si la remise echoue partiellement,
-            // il est impossible de repasser une seconde fois.
             _welcome.playersWelcomeRewarded.Add(steamId);
             SaveWelcome();
 
@@ -343,8 +313,6 @@ namespace PostApo.Arrival
 
             return given;
         }
-
-        // ------------------------------------------------------------------ etape 5 : base
 
         private void AskBaseTeleport(Player player, string steamId, PostApo.District.District district, List<string> rewards)
         {
@@ -388,8 +356,6 @@ namespace PostApo.Arrival
 
             _plugin.Checkpoints.Refresh(player);
         }
-
-        // ------------------------------------------------------------------ points d'arrivee
 
         public ArrivalPoint AddPoint(Vector3 position, string name)
         {

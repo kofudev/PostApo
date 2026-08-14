@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Life.Network;
@@ -6,22 +6,14 @@ using PostApo.Core;
 
 namespace PostApo.District
 {
-    /// <summary>
-    /// Gestion des grades en jeu, reservee au proprietaire du district (et au staff).
-    ///
-    /// Le proprietaire cree ses propres grades, les hierarchise et coche leurs permissions.
-    /// Le modele par defaut illustre l'intention : un adjoint a tout, un officier a tout sauf
-    /// poser et retirer des objets, un membre n'a que l'acces.
-    /// </summary>
     public sealed class GradeMenu
     {
-        /// <summary>Icones d'items utilisees pour rendre les listes lisibles.</summary>
-        private const int IconGrade = 1181;   // Livre
-        private const int IconMember = 1202;  // Feuille de papier
-        private const int IconTerrain = 1077; // Tableau carte d'Amboise
-        private const int IconVehicle = 1530; // Pneu
-        private const int IconOn = 1219;      // Verre
-        private const int IconOff = 29;       // Pierre
+        private const int IconGrade = 1181;
+        private const int IconMember = 1202;
+        private const int IconTerrain = 1077;
+        private const int IconVehicle = 1530;
+        private const int IconOn = 1219;
+        private const int IconOff = 29;
 
         private readonly PostApoPlugin _plugin;
         private readonly DistrictSystem _districts;
@@ -32,11 +24,6 @@ namespace PostApo.District
             _districts = districts;
         }
 
-        /// <summary>
-        /// Autorite pleine : creer, supprimer, renommer un grade, changer son rang et ses droits.
-        /// Reservee au proprietaire et au staff — un delegue ne doit jamais pouvoir se fabriquer
-        /// un grade tout-puissant ni s'ajouter des permissions.
-        /// </summary>
         private bool IsAdminOf(Player player, District district)
         {
             if (district == null) { return false; }
@@ -44,7 +31,6 @@ namespace PostApo.District
                    || Utils.IsStaff(player, _plugin.Config.staffLevelMin);
         }
 
-        /// <summary>Autorite deleguee : affecter un grade a un membre, dans la limite de son propre rang.</summary>
         private bool CanManage(Player player, District district)
         {
             if (district == null) { return false; }
@@ -53,10 +39,6 @@ namespace PostApo.District
                    || _districts.HasPermission(district, Utils.SteamId(player), Perm.GererGrades);
         }
 
-        /// <summary>
-        /// Rang de reference du joueur. Le proprietaire et le staff dominent toute la hierarchie ;
-        /// un membre est plafonne par son propre grade.
-        /// </summary>
         private int RankOf(Player player, District district)
         {
             if (IsAdminOf(player, district)) { return int.MaxValue; }
@@ -65,10 +47,6 @@ namespace PostApo.District
             return grade != null ? grade.rank : 0;
         }
 
-        /// <summary>
-        /// Un membre ne peut agir que <b>strictement en dessous</b> de son propre rang : impossible
-        /// de se promouvoir a son niveau ou au-dessus, ni de toucher un superieur.
-        /// </summary>
         private bool CanActOn(Player player, District district, Grade target)
         {
             if (target == null) { return false; }
@@ -76,8 +54,6 @@ namespace PostApo.District
 
             return target.rank < RankOf(player, district);
         }
-
-        // ------------------------------------------------------------------ racine
 
         public void Open(Player player, District district)
         {
@@ -123,7 +99,6 @@ namespace PostApo.District
                     }));
             }
 
-            // Creer un grade revient a definir des droits : reserve au proprietaire.
             if (admin)
             {
                 entries.Add(new Ui.MenuEntry(Ui.Ok("+ Creer un grade"), IconGrade, "",
@@ -135,8 +110,6 @@ namespace PostApo.District
 
             Ui.Menu(player, "Grades — " + Utils.Sanitize(district.name, 20), body, entries, "Fermer", null);
         }
-
-        // ------------------------------------------------------------------ creation
 
         private void CreateGrade(Player player, District district)
         {
@@ -168,8 +141,6 @@ namespace PostApo.District
                         return;
                     }
 
-                    // Le nouveau grade se place juste au-dessus du plus bas, sans droits :
-                    // le proprietaire coche ensuite ce qu'il veut accorder.
                     var lowest = district.grades.Count == 0 ? 10 : district.grades.Min(g => g.rank);
                     var grade = new Grade
                     {
@@ -188,8 +159,6 @@ namespace PostApo.District
                 () => Open(player, district));
         }
 
-        // ------------------------------------------------------------------ fiche d'un grade
-
         private void OpenGrade(Player player, District district, Grade grade)
         {
             if (!CanActOn(player, district, grade))
@@ -198,7 +167,6 @@ namespace PostApo.District
                 return;
             }
 
-            // Modifier des droits, c'est en accorder : seul le proprietaire peut le faire.
             var admin = IsAdminOf(player, district);
 
             var count = district.members.Count(m => m.gradeId == grade.id);
@@ -230,7 +198,6 @@ namespace PostApo.District
             }
             else
             {
-                // Consultation seule : la liste des droits reste utile a un officier.
                 foreach (var key in Perm.TerrainPermissions.Concat(Perm.VehiclePermissions))
                 {
                     var enabled = grade.Has(key);
@@ -245,20 +212,13 @@ namespace PostApo.District
             Ui.Menu(player, grade.name, body, entries, "Retour", () => Open(player, district));
         }
 
-        /// <summary>Libellés lisibles des permissions : accessible depuis PostApoPlugin pour l'audit staff.</summary>
         public static string LabelPublic(string permission) { return Label(permission); }
 
-        /// <summary>
-        /// Seules ces deux permissions sont reellement appliquees par le jeu : elles pilotent la
-        /// co-propriete native (<c>LifeArea</c> / <c>LifeVehicle</c>). Les autres sont conservees
-        /// et affichees, mais Nova-Life n'expose aucun hook annulable pour les faire respecter.
-        /// </summary>
         private static bool IsEnforced(string permission)
         {
             return permission == Perm.AccesTerrain || permission == Perm.UtiliserVehicule;
         }
 
-        /// <summary>Libellés lisibles des permissions : « ouvrirCoffre » ne parle a personne en jeu.</summary>
         private static string Label(string permission)
         {
             switch (permission)
@@ -284,7 +244,6 @@ namespace PostApo.District
 
         private void OpenPermissionGroup(Player player, District district, Grade grade, string group)
         {
-            // Re-verification serveur : un menu ouvert survit a un changement de situation.
             if (!IsAdminOf(player, district))
             {
                 Utils.Send(player, _plugin.Prefix + Ui.Bad("✕ Reserve au proprietaire du district."));
@@ -331,10 +290,16 @@ namespace PostApo.District
                     enabled ? "actif" : "inactif",
                     () =>
                     {
-                        Toggle(grade, captured);
+                        var live = _districts.Get(district.id);
+                        var liveGrade = live != null ? live.FindGrade(grade.id) : null;
+                        if (live == null || liveGrade == null) { return; }
+
+                        if (!IsAdminOf(player, live)) { return; }
+
+                        Toggle(liveGrade, captured);
                         _districts.Save();
-                        _districts.SyncSharedProperties(district);
-                        OpenPermissionGroup(player, district, grade, group);
+                        _districts.SyncSharedProperties(live);
+                        OpenPermissionGroup(player, live, liveGrade, group);
                     }));
             }
 
@@ -440,8 +405,6 @@ namespace PostApo.District
                 () => OpenGrade(player, district, grade));
         }
 
-        // ------------------------------------------------------------------ affectation
-
         private void OpenMemberList(Player player, District district)
         {
             var entries = district.members
@@ -474,7 +437,6 @@ namespace PostApo.District
                 return;
             }
 
-            // On ne touche pas a un membre de rang superieur ou egal au sien.
             var memberGrade = district.FindGrade(member.gradeId);
             if (memberGrade != null && !CanActOn(player, district, memberGrade))
             {
@@ -511,14 +473,21 @@ namespace PostApo.District
             Ui.Menu(player, member.name, body, entries, "Retour", () => OpenMemberList(player, district));
         }
 
-        /// <summary>
-        /// Applique un changement de grade apres re-verification cote serveur.
-        ///
-        /// Le controle est refait ici et pas seulement a l'affichage : un menu reste ouvert pendant
-        /// que la situation change, et rien ne garantit qu'une entree grisee ne sera pas declenchee.
-        /// </summary>
         private void Assign(Player player, District district, Member member, Grade grade)
         {
+            var live = district != null ? _districts.Get(district.id) : null;
+            if (live == null) { return; }
+
+            district = live;
+            member = live.FindMember(member != null ? member.steamId : null);
+            grade = grade != null ? live.FindGrade(grade.id) : null;
+
+            if (member == null || grade == null)
+            {
+                Utils.Send(player, _plugin.Prefix + Ui.Bad("✕ Ce membre ou ce grade n'existe plus."));
+                return;
+            }
+
             if (!CanManage(player, district))
             {
                 Utils.Send(player, _plugin.Prefix + Ui.Bad("✕ Vous n'avez pas la permission d'effectuer cette action."));

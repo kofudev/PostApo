@@ -1,16 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 using PostApo.Etabli;
 
 namespace PostApo.Vehicle
 {
-    /// <summary>
-    /// Identifiants d'items utilises par la filiere vehicule.
-    /// Tous proviennent de la feuille d'IDs officielle Nova-Life: Amboise.
-    /// </summary>
     public static class Mat
     {
-        // Bruts
         public const int Pierre = 29;
         public const int Cuivre = 30;
         public const int Diamant = 31;
@@ -18,7 +13,6 @@ namespace PostApo.Vehicle
         public const int Sable = 82;
         public const int Magnetite = 1419;
 
-        // Transformes
         public const int CuivreRaffine = 79;
         public const int LingotCuivre = 1722;
         public const int LingotMagnetite = 1425;
@@ -31,58 +25,44 @@ namespace PostApo.Vehicle
         public const int PoutreMetal = 1430;
         public const int StructureMetallique = 1222;
 
-        // Pieces
         public const int Bougie = 3;
         public const int Batterie = 5;
         public const int Pneu = 1530;
         public const int BoiteAOutils = 1213;
 
-        // Rares — introuvables au craft, uniquement en exploration
-        public const int Calculateur = 95;      // Ordinateur portable
-        public const int FaisceauElec = 1336;   // Radio emetteur
-        public const int OutilPrecision = 1373; // Machine a sertir
-        public const int CelluleHD = 1590;      // Batterie portable
+        public const int Calculateur = 95;
+        public const int FaisceauElec = 1336;
+        public const int OutilPrecision = 1373;
+        public const int CelluleHD = 1590;
 
-        // Plans (un par palier)
-        public const int PlanT1 = 1202;  // Feuille de papier
-        public const int PlanT2 = 1302;  // Pile de documents
-        public const int PlanT3 = 1181;  // Livre
-        public const int PlanT4 = 1321;  // Pile de magazine
-        public const int PlanT5 = 41;    // Carte Kisa
+        public const int PlanT1 = 1202;
+        public const int PlanT2 = 1302;
+        public const int PlanT3 = 1181;
+        public const int PlanT4 = 1321;
+        public const int PlanT5 = 41;
     }
 
-    /// <summary>Une etape de chantier : des materiaux a livrer, puis du temps de travail.</summary>
     public sealed class VehicleStage
     {
         public string name = "";
         public string description = "";
         public List<RecipeItem> inputs = new List<RecipeItem>();
 
-        /// <summary>Duree des travaux une fois tous les materiaux livres (avant multiplicateur).</summary>
         public float workSeconds = 60f;
 
-        /// <summary>Probabilite d'echec de l'etape. Negatif = valeur globale. Un echec fait perdre l'etape, pas le chantier.</summary>
         public float failureChance = -1f;
     }
 
-    /// <summary>
-    /// Definition complete d'un vehicule constructible : le modele du jeu, son palier,
-    /// le plan a trouver pour le debloquer, et la suite d'etapes de reconstruction.
-    /// </summary>
     public sealed class VehicleBlueprint
     {
-        /// <summary>ID de modele Nova-Life (feuille d'IDs officielle).</summary>
         public int modelId;
 
         public string name = "";
 
-        /// <summary>1 = epave roulante ... 5 = legendaire. Determine le deblocage et la rarete du plan.</summary>
         public int tier = 1;
 
-        /// <summary>Nom RP du plan, affiche a la place du nom d'item du jeu.</summary>
         public string planLabel = "";
 
-        /// <summary>Item consomme au demarrage du chantier.</summary>
         public int planItemId;
 
         public List<VehicleStage> stages = new List<VehicleStage>();
@@ -91,7 +71,6 @@ namespace PostApo.Vehicle
         [JsonIgnore] public string InvalidReason = "";
     }
 
-    /// <summary>Atelier de reconstruction : le point ou vivent les chantiers d'un district.</summary>
     public sealed class VehicleWorkshop
     {
         public int id;
@@ -100,30 +79,16 @@ namespace PostApo.Vehicle
         public PostApo.District.Position position = new PostApo.District.Position();
     }
 
-    /// <summary>
-    /// Contenu de <c>vehicles.json</c> : les plans de construction et les ateliers.
-    ///
-    /// Cinq paliers, deverrouilles l'un apres l'autre par district : on ne construit pas une
-    /// sportive avant d'avoir remonte une citadine. Chaque palier ajoute une etape, des materiaux
-    /// plus rares, et un plan plus difficile a trouver.
-    /// </summary>
     public sealed class VehicleData
     {
         public List<VehicleBlueprint> blueprints = DefaultBlueprints();
         public List<VehicleWorkshop> workshops = new List<VehicleWorkshop>();
 
-        // ------------------------------------------------------------------ generation par defaut
-
         private static RecipeItem I(int itemId, int qty) { return new RecipeItem(itemId, qty); }
 
-        /// <summary>
-        /// Les etapes sont construites par palier : chaque palier reprend les etapes du precedent
-        /// avec des quantites superieures, et en ajoute une nouvelle. Ecrire les 22 vehicules a la
-        /// main serait illisible et source d'incoherences.
-        /// </summary>
         private static List<VehicleStage> StagesForTier(int tier)
         {
-            var s = tier;               // facteur d'echelle
+            var s = tier;
             var stages = new List<VehicleStage>();
 
             stages.Add(new VehicleStage
@@ -276,37 +241,31 @@ namespace PostApo.Vehicle
             };
         }
 
-        /// <summary>Modeles reels du jeu, repartis en cinq paliers de progression.</summary>
         public static List<VehicleBlueprint> DefaultBlueprints()
         {
             return new List<VehicleBlueprint>
             {
-                // ---- Palier 1 : ce qui roule encore, a peu pres
                 Make(44, "206", 1),
                 Make(53, "Kart", 1),
                 Make(16, "Renaud Express", 1),
 
-                // ---- Palier 2 : utilitaires et familiales
                 Make(8,  "Berlingo civil", 2),
                 Make(13, "Megane IV civil", 2),
                 Make(1,  "Renaud Master", 2),
                 Make(15, "C4 Grand Picasso", 2),
 
-                // ---- Palier 3 : routieres et tout-terrain
                 Make(41, "5008 civil", 3),
                 Make(24, "Range River", 3),
                 Make(56, "Korn Ranger 2021", 3),
                 Make(0,  "Premier", 3),
                 Make(12, "Depanneuse", 3),
 
-                // ---- Palier 4 : sportives
                 Make(14, "RX7", 4),
                 Make(35, "Dodge Charger 1970", 4),
                 Make(54, "Leaf Golster 1981", 4),
                 Make(28, "Stellar coupe", 4),
                 Make(10, "Olympia S7", 4),
 
-                // ---- Palier 5 : legendes de l'ancien monde
                 Make(55, "Stellar 911 RS", 5),
                 Make(40, "V Model S", 5),
                 Make(22, "Delorean CMD-12", 5),

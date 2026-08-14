@@ -1,31 +1,11 @@
-using System;
+﻿using System;
 using System.IO;
 using Newtonsoft.Json;
 
 namespace PostApo.Core
 {
-    /// <summary>
-    /// Persistance JSON generique et resistante aux erreurs.
-    ///
-    /// Garanties :
-    ///  - le fichier est cree automatiquement avec des valeurs par defaut s'il n'existe pas ;
-    ///  - un JSON corrompu est mis de cote (.corrupt-&lt;timestamp&gt;) au lieu d'etre ecrase silencieusement,
-    ///    et les valeurs par defaut sont rechargees : le serveur demarre toujours ;
-    ///  - l'ecriture est atomique (fichier temporaire + remplacement), donc une coupure en cours
-    ///    d'ecriture ne detruit pas les donnees deja presentes ;
-    ///  - aucune exception ne remonte a l'appelant.
-    /// </summary>
     public sealed class JsonStore<T> where T : class, new()
     {
-        /// <summary>
-        /// <c>ObjectCreationHandling.Replace</c> est indispensable ici.
-        ///
-        /// Par defaut, Newtonsoft <b>reutilise</b> les collections deja instanciees par les
-        /// initialiseurs de champ et y <b>ajoute</b> les elements lus. Les listes livrees avec des
-        /// valeurs par defaut (districts, recettes, plans de vehicule, recompenses) seraient donc
-        /// dupliquees a chaque chargement : 5 districts, puis 10, puis 15... Replace force le
-        /// remplacement de la collection, ce qui rend le chargement idempotent.
-        /// </summary>
         private static readonly JsonSerializerSettings ReadSettings = new JsonSerializerSettings
         {
             ObjectCreationHandling = ObjectCreationHandling.Replace,
@@ -41,9 +21,6 @@ namespace PostApo.Core
             _path = Path.Combine(directory ?? string.Empty, fileName);
         }
 
-        public string Path_ { get { return _path; } }
-
-        /// <summary>Charge le fichier ; retourne toujours une instance exploitable.</summary>
         public T Load()
         {
             lock (_gate)
@@ -92,7 +69,6 @@ namespace PostApo.Core
             }
         }
 
-        /// <summary>Sauvegarde atomique. Retourne false si l'ecriture a echoue (les donnees en place restent intactes).</summary>
         public bool Save(T value)
         {
             if (value == null) { return false; }
@@ -112,8 +88,6 @@ namespace PostApo.Core
             }
         }
 
-        // ------------------------------------------------------------------ interne
-
         private void WriteUnsafe(T value)
         {
             var dir = Path.GetDirectoryName(_path);
@@ -129,7 +103,6 @@ namespace PostApo.Core
 
             if (File.Exists(_path))
             {
-                // File.Replace conserve l'ancien contenu jusqu'au dernier moment.
                 File.Replace(tmp, _path, null);
             }
             else

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -17,15 +17,11 @@ using PostApo.Spawn;
 using PostApo.Vehicle;
 using UnityEngine;
 using DistrictEntity = PostApo.District.District;
-// Mirror expose lui aussi un type « Utils » : on leve l'ambiguite explicitement.
+
 using Utils = PostApo.Core.Utils;
 
 namespace PostApo
 {
-    /// <summary>
-    /// Point d'entree du plugin. Ne contient que l'orchestration : chargement, callbacks natifs,
-    /// boucle interne et routage des commandes. Toute la logique metier vit dans les modules.
-    /// </summary>
     public sealed class PostApoPlugin : Plugin, IDisposable
     {
         public const string Version = "1.0.0";
@@ -33,7 +29,6 @@ namespace PostApo
         private bool _initialized;
         private bool _disposed;
 
-        /// <summary>Passe a true une fois les items du serveur resolus (voir <see cref="Utils.ItemsReady"/>).</summary>
         private bool _itemsResolved;
 
         private string _root;
@@ -64,8 +59,6 @@ namespace PostApo
             Utils.Log("assembly chargee (v" + Version + "), en attente d'initialisation...");
         }
 
-        // ------------------------------------------------------------------ cycle de vie
-
         public override void OnPluginInit()
         {
             base.OnPluginInit();
@@ -91,7 +84,6 @@ namespace PostApo
             Webhook = new WebhookLogger(Config.webhookUrl);
             Checkpoints = new CheckpointService();
 
-            // L'ordre compte : le moteur de craft est utilise par l'etabli et par les districts.
             SafeInit("districts", () => Districts = new DistrictSystem(this, _root));
             SafeInit("craft", () => Craft = new CraftEngine(this, _root));
             SafeInit("etabli", () => Etabli = new EtabliSystem(this, _root));
@@ -161,14 +153,10 @@ namespace PostApo
                 {
                     if (!_commands.Registered && seconds % 5 == 0) { _commands.TryRegister(); }
 
-                    // Les items du jeu ne sont pas encore charges quand les plugins s'initialisent :
-                    // on rejoue la resolution des slugs des que le catalogue est disponible.
                     if (!_itemsResolved && Utils.ItemsReady()) { ResolveItems(); }
 
                     if (seconds % 30 == 0 && Farm != null) { Farm.Tick(); }
 
-                    // Passage rapproche mais sans churn : Tick ne reconstruit que chez les joueurs
-                    // dont l'environnement a reellement change (deplacement, nouveau point, droits).
                     if (seconds % 10 == 0 && Checkpoints != null) { Checkpoints.Tick(); }
 
                     var recheck = Config.crowbar.recheckIntervalSeconds;
@@ -184,17 +172,12 @@ namespace PostApo
             }
         }
 
-        /// <summary>
-        /// Resout les slugs d'items une fois le catalogue du serveur peuple, puis reconstruit les
-        /// checkpoints (des gisements ont pu devenir valides).
-        /// </summary>
         private void ResolveItems()
         {
             _itemsResolved = true;
 
             try
             {
-                // Les caches ont pu se remplir de « objet #123 » avant que le catalogue soit pret.
                 Utils.ClearItemCaches();
 
                 if (Craft != null) { Craft.Reload(); }
@@ -235,8 +218,6 @@ namespace PostApo
             GC.SuppressFinalize(this);
         }
 
-        // ------------------------------------------------------------------ callbacks natifs
-
         public override void OnPlayerSpawnCharacter(Player player, NetworkConnection conn, Characters character)
         {
             base.OnPlayerSpawnCharacter(player, conn, character);
@@ -262,8 +243,6 @@ namespace PostApo
             yield return new WaitForSeconds(3f);
             if (player != null && player.setup != null && Checkpoints != null)
             {
-                // Force : apres une apparition, le client n'a plus aucun checkpoint,
-                // meme si le decor est identique a la derniere fois.
                 Checkpoints.Refresh(player, true);
             }
         }
@@ -278,7 +257,6 @@ namespace PostApo
                 if (Craft != null) { Craft.AbortFor(steamId); }
                 if (Farm != null) { Farm.AbortFor(steamId); }
 
-                // Le pied de biche est rendu apres la reapparition, pas au moment de la mort.
                 var host = LifeManager.instance as MonoBehaviour;
                 if (host != null) { host.StartCoroutine(EnsureAfterRespawn(player)); }
             }
@@ -317,8 +295,6 @@ namespace PostApo
                 Utils.Warn("OnPlayerDisconnect : " + ex.Message);
             }
         }
-
-        // ------------------------------------------------------------------ commandes
 
         private void RegisterCommands()
         {
@@ -401,8 +377,6 @@ namespace PostApo
             if (args == null || args.Length <= from) { return string.Empty; }
             return string.Join(" ", args.Skip(from).ToArray()).Trim();
         }
-
-        // ---------------------------------------------------------- /postapo
 
         private void CmdPostApo(Player player, string[] args)
         {
@@ -531,6 +505,7 @@ namespace PostApo
                        + "\nPied de biche : " + (Spawn != null && Spawn.Configured
                            ? Ui.Ok("item " + Spawn.ItemId) : Ui.Bad("non configure"))
                        + "\n"
+                       + "\n" + Signature
                        + "\nDifficulte : craft ×" + Config.difficulty.craftTimeMultiplier
                        + ", echec " + Mathf.RoundToInt(Config.difficulty.craftFailureChance * 100f) + "%"
                        + ", rendement ×" + Config.difficulty.farmYieldMultiplier;
@@ -560,8 +535,6 @@ namespace PostApo
                 Webhook.LogError("reload", ex);
             }
         }
-
-        // ---------------------------------------------------------- /spawn_arrivee
 
         private void CmdSpawnArrivee(Player player, string[] args)
         {
@@ -628,8 +601,6 @@ namespace PostApo
             }
         }
 
-        // ---------------------------------------------------------- /district
-
         private void CmdDistrict(Player player, string[] args)
         {
             if (Districts == null) { Reply(player, Ui.Bad("Module districts indisponible.")); return; }
@@ -685,7 +656,6 @@ namespace PostApo
                 }
             }
 
-            // Sous-commandes de gestion : staff ou droits de district.
             switch (sub)
             {
                 case "create":
@@ -914,13 +884,11 @@ namespace PostApo
             Ui.Info(player, district.name, body);
         }
 
-        /// <summary>Mention discrete, glissee dans les pieds de menus secondaires.</summary>
         public static string Signature
         {
             get { return Ui.Dim("<size=10>100% développé par Kof660 ^^</size>"); }
         }
 
-        /// <summary>Adhesion depuis le menu, avec recapitulatif avant validation.</summary>
         private void ConfirmJoinDistrict(Player player, DistrictEntity district, string specialite)
         {
             var body = "<b>" + district.name + "</b>\n";
@@ -957,8 +925,6 @@ namespace PostApo
 
             if (district == null)
             {
-                // Sans cette entree, un joueur qui a quitte son district ne peut plus jamais en
-                // rejoindre un : le parcours d'arrivee ne se rejoue pas (verrouille par SteamID).
                 var entries = Districts.All.OrderBy(d => d.id).Select(d =>
                 {
                     var captured = d;
@@ -995,7 +961,6 @@ namespace PostApo
                     () => Districts.TeleportToBase(player, district, true)));
             }
 
-            // Gestion des grades : reservee au proprietaire (ou a qui il delegue).
             if (district.IsOwner(steamId)
                 || Districts.HasPermission(player, Perm.GererGrades)
                 || Utils.IsStaff(player, Config.staffLevelMin))
@@ -1028,8 +993,6 @@ namespace PostApo
 
             Ui.Info(player, "Membres", body);
         }
-
-        // ---------------------------------------------------------- /district_base
 
         private void CmdDistrictBase(Player player, string[] args)
         {
@@ -1067,7 +1030,6 @@ namespace PostApo
 
                 case "teleport":
                 {
-                    // Le staff se teleporte partout ; un joueur uniquement vers la base de son district.
                     var isStaff = Utils.IsStaff(player, Config.staffLevelMin);
                     var ownDistrict = Districts.DistrictOf(player);
 
@@ -1086,8 +1048,6 @@ namespace PostApo
                     break;
             }
         }
-
-        // ---------------------------------------------------------- /district_craft
 
         private void CmdDistrictCraft(Player player, string[] args)
         {
@@ -1174,8 +1134,6 @@ namespace PostApo
             }
         }
 
-        // ---------------------------------------------------------- /etabli_point
-
         private void CmdEtabliPoint(Player player, string[] args)
         {
             if (!RequireStaff(player)) { return; }
@@ -1228,8 +1186,6 @@ namespace PostApo
             }
         }
 
-        // ---------------------------------------------------------- /etabli
-
         private void CmdEtabli(Player player, string[] args)
         {
             if (Etabli == null) { Reply(player, Ui.Bad("Module etabli indisponible.")); return; }
@@ -1272,8 +1228,6 @@ namespace PostApo
 
             Ui.Menu(player, "Etabli", body, entries, "Fermer", null);
         }
-
-        // ---------------------------------------------------------- /farm_point
 
         private void CmdFarmPoint(Player player, string[] args)
         {
@@ -1379,8 +1333,6 @@ namespace PostApo
             }
         }
 
-        // ---------------------------------------------------------- /atelier
-
         private void CmdAtelier(Player player, string[] args)
         {
             if (Vehicles == null || Districts == null)
@@ -1391,7 +1343,6 @@ namespace PostApo
 
             var sub = Arg(args, 0).ToLowerInvariant();
 
-            // Sans argument : le joueur consulte les chantiers de son district.
             if (sub.Length == 0)
             {
                 var district = Districts.DistrictOf(player);
@@ -1522,13 +1473,6 @@ namespace PostApo
             }
         }
 
-        // ---------------------------------------------------------- /staffapo
-
-        /// <summary>
-        /// Menu staff in-game. Centralise tout ce que le staff doit pouvoir faire
-        /// sans taper de commandes texte : voir l'état, gérer les districts, les joueurs,
-        /// les établis, forcer des rechargements.
-        /// </summary>
         private void CmdStaffApo(Player player, string[] args)
         {
             if (!RequireStaff(player)) { return; }
@@ -1574,8 +1518,6 @@ namespace PostApo
             Ui.Menu(player, "Staff — PostApo", body, entries, "Fermer", null);
         }
 
-        // ---- Districts ----
-
         private void OpenStaffDistrictList(Player player)
         {
             if (Districts == null) { Reply(player, Ui.Bad("Module districts indisponible.")); return; }
@@ -1616,7 +1558,6 @@ namespace PostApo
                 var perms = grade.permissions != null ? grade.permissions.Count : 0;
                 body += "  " + Ui.Accent(grade.name) + Ui.Dim(" rang " + grade.rank + " · " + cnt + " membre(s) · " + perms + " droits") + "\n";
 
-                // Affiche les permissions actives pour ce grade
                 if (grade.permissions != null && grade.permissions.Count > 0)
                 {
                     body += Ui.Dim("    → " + string.Join(", ", grade.permissions.Take(5).ToArray())
@@ -1735,7 +1676,6 @@ namespace PostApo
             Ui.Menu(player, member.name, body, entries, "← Membres", () => OpenStaffMemberList(player, district));
         }
 
-        /// <summary>Audit des grades : affiche tous les grades et leurs permissions pour vérification staff.</summary>
         private void OpenStaffGradeAudit(Player player, PostApo.District.District district)
         {
             var body = Ui.Accent("<b>Audit des grades — " + district.name + "</b>") + "\n"
@@ -1762,8 +1702,6 @@ namespace PostApo
             Ui.LongText(player, "Audit grades — " + district.name, body, "← District",
                 () => OpenStaffDistrictDetail(player, district));
         }
-
-        // ---- Joueurs en ligne ----
 
         private void OpenStaffPlayerList(Player player)
         {
@@ -1835,8 +1773,6 @@ namespace PostApo
             Ui.Menu(player, Utils.Name(target), body, entries, "← Joueurs", () => OpenStaffPlayerList(player));
         }
 
-        // ---- Établis ----
-
         private void OpenStaffEtabliList(Player player)
         {
             if (Etabli == null) { Reply(player, Ui.Bad("Module établi indisponible.")); return; }
@@ -1881,8 +1817,6 @@ namespace PostApo
                 entries, "← Staff", () => OpenStaffMainMenu(player));
         }
 
-        // ---- Points de craft de district ----
-
         private void OpenStaffCraftPoints(Player player)
         {
             if (Districts == null) { Reply(player, Ui.Bad("Module districts indisponible.")); return; }
@@ -1909,8 +1843,6 @@ namespace PostApo
 
             Ui.Info(player, "Ateliers craft", body);
         }
-
-        // ---- Ateliers véhicule ----
 
         private void OpenStaffWorkshops(Player player)
         {
@@ -1953,12 +1885,6 @@ namespace PostApo
                 entries, "← Staff", () => OpenStaffMainMenu(player));
         }
 
-        // ------------------------------------------------------------------ chemins
-
-        /// <summary>
-        /// Dossier de donnees. On privilegie <c>thisPath</c> fourni par le jeu, avec repli sur
-        /// l'emplacement de la DLL — le plugin fonctionne dans les deux cas.
-        /// </summary>
         private static string ResolveRoot()
         {
             try

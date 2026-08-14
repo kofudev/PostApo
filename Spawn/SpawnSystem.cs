@@ -1,18 +1,9 @@
-using System;
+﻿using System;
 using Life.Network;
 using PostApo.Core;
 
 namespace PostApo.Spawn
 {
-    /// <summary>
-    /// Pied de biche permanent.
-    ///
-    /// Nova-Life n'expose aucun moyen de rendre un item indestructible ou incessible depuis un
-    /// plugin (option A du cahier des charges : il faudrait patcher <c>Inventory</c>, ce qui
-    /// imposerait une dependance externe). Le plugin applique donc l'option B, entierement native :
-    /// l'item est verifie a chaque apparition du personnage, apres chaque mort, et periodiquement.
-    /// Des qu'il manque, il est rendu.
-    /// </summary>
     public sealed class SpawnSystem
     {
         private readonly PostApoPlugin _plugin;
@@ -39,7 +30,6 @@ namespace PostApo.Spawn
             }
         }
 
-        /// <summary>Verifie et redonne l'item si necessaire. Retourne true si un item a ete remis.</summary>
         public bool Ensure(Player player)
         {
             if (!Configured || player == null) { return false; }
@@ -65,7 +55,6 @@ namespace PostApo.Spawn
             }
         }
 
-        /// <summary>Passe en revue tous les joueurs connectes.</summary>
         public void EnsureAll()
         {
             if (!Configured) { return; }

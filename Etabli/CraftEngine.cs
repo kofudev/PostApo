@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,23 +9,12 @@ using UnityEngine;
 
 namespace PostApo.Etabli
 {
-    /// <summary>
-    /// Moteur de craft partage entre l'etabli personnel et les ateliers specialises des districts.
-    ///
-    /// Regles anti-abus :
-    ///  - un seul craft simultane par joueur ;
-    ///  - les materiaux sont consommes au demarrage, pas a la fin : impossible de dupliquer en
-    ///    lancant plusieurs crafts ou en se deconnectant a la derniere seconde ;
-    ///  - le joueur doit rester pres de l'etabli pendant toute la duree ;
-    ///  - la place en inventaire est verifiee avant de commencer.
-    /// </summary>
     public sealed class CraftEngine
     {
         private readonly PostApoPlugin _plugin;
         private readonly JsonStore<RecipeData> _store;
         private RecipeData _data;
 
-        /// <summary>Crafts en cours, indexes par SteamID.</summary>
         private readonly Dictionary<string, Coroutine> _running = new Dictionary<string, Coroutine>();
 
         public CraftEngine(PostApoPlugin plugin, string root)
@@ -40,7 +29,6 @@ namespace PostApo.Etabli
         public int ValidCount { get { return AllRecipes.Count(r => r.Valid); } }
         public int InvalidCount { get { return AllRecipes.Count(r => !r.Valid); } }
 
-        /// <summary>Recharge et revalide toutes les recettes contre le catalogue d'items du serveur.</summary>
         public void Reload()
         {
             _data = _store.Load();
@@ -98,8 +86,6 @@ namespace PostApo.Etabli
                 if (recipe.craftTime < 1f) { recipe.craftTime = 1f; }
             }
 
-            // Tant que le catalogue d'items n'est pas peuple, l'invalidite n'a aucun sens :
-            // le plugin relancera cette validation des que le jeu sera pret.
             if (!Utils.ItemsReady()) { return; }
 
             var invalid = _data.recipes.Where(r => r != null && !r.Valid).ToArray();
@@ -117,15 +103,11 @@ namespace PostApo.Etabli
 
         public bool Save() { return _store.Save(_data); }
 
-        // ------------------------------------------------------------------ selection
-
-        /// <summary>Recettes de l'etabli generique (celles sans specialite).</summary>
         public IEnumerable<Recipe> GenericRecipes()
         {
             return AllRecipes.Where(r => r != null && r.Valid && string.IsNullOrWhiteSpace(r.specialite));
         }
 
-        /// <summary>Recettes reservees a une specialite de district.</summary>
         public IEnumerable<Recipe> RecipesForSpecialite(string specialite)
         {
             if (string.IsNullOrWhiteSpace(specialite)) { return GenericRecipes(); }
@@ -142,8 +124,6 @@ namespace PostApo.Etabli
                              .Distinct()
                              .OrderBy(s => s);
         }
-
-        // ------------------------------------------------------------------ interface
 
         public void OpenMenu(Player player, string title, string header, List<Recipe> recipes, Vector3 anchor)
         {
@@ -165,9 +145,6 @@ namespace PostApo.Etabli
                 var affordable = missing == 0;
                 if (affordable) { ready++; }
 
-                // La colonne de droite reste courte par principe : y lister tous les manques
-                // deborde des qu'une recette demande plus de deux ou trois ingredients.
-                // Le detail complet est une page a part, ou chaque ressource a sa propre ligne.
                 var priceText = affordable
                     ? Ui.Ok("✓ prêt")
                     : Ui.Bad("✕ " + missing + " manque" + (missing > 1 ? "s" : ""));
@@ -188,7 +165,6 @@ namespace PostApo.Etabli
             Ui.Menu(player, title, header + "\n" + summary, entries, "Fermer", null);
         }
 
-        /// <summary>Nombre d'ingredients (outil compris) dont le joueur manque.</summary>
         private int MissingCount(Player player, Recipe recipe)
         {
             var missing = 0;
@@ -211,8 +187,6 @@ namespace PostApo.Etabli
         {
             if (player == null || recipe == null) { return; }
 
-            // Le resume reste court pour tenir sur une page : le detail chiffre vit dans les
-            // lignes ci-dessous, ou chaque ressource occupe sa propre entree avec son icone.
             var failPct = Mathf.RoundToInt(EffectiveFailure(recipe) * 100f);
 
             var body = Ui.Accent("Produit : " + recipe.output.qty + " × "
@@ -257,7 +231,6 @@ namespace PostApo.Etabli
                     null));
             }
 
-            // Le bouton d'action est en tete : c'est ce que le joueur cherche en priorite.
             if (canStart)
             {
                 entries.Insert(0, new Ui.MenuEntry(Ui.Ok("▶ FABRIQUER"),
@@ -274,8 +247,6 @@ namespace PostApo.Etabli
 
             Ui.Menu(player, recipe.name, body, entries, "Fermer", null);
         }
-
-        // ------------------------------------------------------------------ execution
 
         public float EffectiveTime(Recipe recipe)
         {
@@ -355,7 +326,6 @@ namespace PostApo.Etabli
                 return;
             }
 
-            // Consommation immediate : toute duplication par craft parallele ou deconnexion est bloquee.
             var consumed = new List<RecipeItem>();
             foreach (var input in recipe.inputs)
             {
@@ -365,7 +335,6 @@ namespace PostApo.Etabli
                 }
                 else
                 {
-                    // Retour arriere complet si un retrait echoue en cours de route.
                     foreach (var done in consumed)
                     {
                         Utils.GiveItem(player, done.ResolvedId, done.qty);
@@ -379,7 +348,6 @@ namespace PostApo.Etabli
             var host = LifeManager.instance as MonoBehaviour;
             if (host == null)
             {
-                // Sans coroutine possible, on livre immediatement plutot que de perdre les materiaux.
                 Finish(player, recipe, true);
                 return;
             }
@@ -401,7 +369,6 @@ namespace PostApo.Etabli
                 yield return wait;
                 elapsed += 1f;
 
-                // Le joueur s'est deconnecte : le craft est perdu, materiaux compris.
                 if (player == null || player.setup == null)
                 {
                     _running.Remove(steamId);
@@ -468,7 +435,6 @@ namespace PostApo.Etabli
 
             if (!Utils.GiveItem(player, recipe.output.ResolvedId, recipe.output.qty))
             {
-                // Inventaire devenu plein pendant le craft : on rend les materiaux plutot que de tout perdre.
                 foreach (var input in recipe.inputs)
                 {
                     Utils.GiveItem(player, input.ResolvedId, input.qty);
@@ -484,7 +450,6 @@ namespace PostApo.Etabli
             _plugin.Webhook.LogCraft(Utils.Name(player), Utils.SteamId(player), label, true);
         }
 
-        /// <summary>Interrompt le craft d'un joueur qui se deconnecte.</summary>
         public void AbortFor(string steamId)
         {
             if (string.IsNullOrEmpty(steamId)) { return; }

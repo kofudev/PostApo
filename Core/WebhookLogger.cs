@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -8,13 +8,6 @@ using Newtonsoft.Json;
 
 namespace PostApo.Core
 {
-    /// <summary>
-    /// Couche unique d'envoi vers Discord. Aucun appel HTTP n'est fait ailleurs dans le plugin.
-    ///
-    /// Les messages sont empiles puis envoyes par un thread de fond : le gameplay n'est jamais
-    /// bloque, et une panne de Discord (URL invalide, coupure reseau, rate-limit) n'a aucun effet
-    /// visible en jeu.
-    /// </summary>
     public sealed class WebhookLogger : IDisposable
     {
         private const int MaxQueued = 200;
@@ -48,8 +41,6 @@ namespace PostApo.Core
         {
             _url = string.IsNullOrWhiteSpace(url) ? string.Empty : url.Trim();
         }
-
-        // ------------------------------------------------------------- evenements metier
 
         public void LogPlayerArrival(string playerName, string steamId)
         {
@@ -127,7 +118,6 @@ namespace PostApo.Core
             Post("ℹ️ " + Safe(message));
         }
 
-        /// <summary>Recapitulatif complet du parcours d'arrivee d'un joueur.</summary>
         public void LogArrivalSummary(string playerName, string steamId, string districtName,
                                       bool hasBase, IEnumerable<string> rewards, string teleport)
         {
@@ -141,8 +131,6 @@ namespace PostApo.Core
                  + "Teleportation :\n" + Safe(teleport));
         }
 
-        // ------------------------------------------------------------- transport
-
         private void Post(string content)
         {
             if (!Enabled || string.IsNullOrEmpty(content)) { return; }
@@ -151,7 +139,6 @@ namespace PostApo.Core
             {
                 if (_queue.Count >= MaxQueued)
                 {
-                    // Discord est injoignable ou sature : on jette le plus ancien plutot que de gonfler la memoire.
                     _queue.Dequeue();
                 }
 
@@ -182,13 +169,11 @@ namespace PostApo.Core
 
                     Send(message);
 
-                    // Cadence volontairement basse : reste tres loin des limites Discord.
                     Thread.Sleep(1200);
                 }
                 catch (ThreadInterruptedException) { return; }
                 catch
                 {
-                    // Un echec d'envoi ne doit jamais tuer le thread ni remonter en jeu.
                     try { Thread.Sleep(2000); } catch { return; }
                 }
             }
@@ -225,7 +210,6 @@ namespace PostApo.Core
             }
             catch
             {
-                // Silencieux par conception : le webhook ne doit jamais perturber le serveur.
             }
         }
 

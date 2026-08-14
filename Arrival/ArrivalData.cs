@@ -1,8 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace PostApo.Arrival
 {
-    /// <summary>Point d'apparition possible pour un nouveau joueur.</summary>
     public sealed class ArrivalPoint
     {
         public int id;
@@ -12,12 +11,6 @@ namespace PostApo.Arrival
         public float z;
     }
 
-    /// <summary>
-    /// Contenu de <c>arrival_data.json</c>.
-    ///
-    /// <see cref="playersInitialized"/> est indexe par SteamID : le parcours d'introduction ne peut
-    /// donc pas etre rejoue, ni apres un redemarrage du serveur, ni en recreant un personnage.
-    /// </summary>
     public sealed class ArrivalData
     {
         public List<ArrivalPoint> arrivalPoints = new List<ArrivalPoint>();

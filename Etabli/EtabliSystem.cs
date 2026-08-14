@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Life;
@@ -9,17 +9,12 @@ using UnityEngine;
 
 namespace PostApo.Etabli
 {
-    /// <summary>
-    /// Etabli : point de fabrication staff, fabrication de l'etabli personnel, pose unique,
-    /// et menu de craft sur les etablis poses.
-    /// </summary>
     public sealed class EtabliSystem
     {
         private readonly PostApoPlugin _plugin;
         private readonly JsonStore<EtabliData> _store;
         private EtabliData _data;
 
-        /// <summary>Id de l'item « etabli », resolu au chargement. 0 = non configure.</summary>
         private int _etabliItemId;
 
         public EtabliSystem(PostApoPlugin plugin, string root)
@@ -55,8 +50,6 @@ namespace PostApo.Etabli
 
         public bool Save() { return _store.Save(_data); }
 
-        // ------------------------------------------------------------------ points d'interaction
-
         public IEnumerable<InteractionPoint> Points()
         {
             if (!_plugin.Config.etabli.enabled) { yield break; }
@@ -90,7 +83,6 @@ namespace PostApo.Etabli
             }
         }
 
-        /// <summary>Un etabli est utilisable par son proprietaire et, s'il est partage, par son district.</summary>
         private bool CanUse(Player player, PlacedEtabli etabli)
         {
             var steamId = Utils.SteamId(player);
@@ -102,8 +94,6 @@ namespace PostApo.Etabli
             var ownerDistrict = _plugin.Districts.DistrictOf(etabli.ownerSteamId);
             return ownerDistrict != null && ownerDistrict.FindMember(steamId) != null;
         }
-
-        // ------------------------------------------------------------------ point staff
 
         private void OpenStaffPoint(Player player, StaffCraftPoint point)
         {
@@ -119,7 +109,6 @@ namespace PostApo.Etabli
                 return;
             }
 
-            // Le joueur doit comprendre ou il est et a quoi sert l'endroit sans deviner.
             var body = "Vous êtes à l'" + Ui.Accent("atelier communal") + ".\n"
                        + Ui.Dim("C'est ici que vous fabriquez votre établi personnel. "
                                 + "Une fois fabriqué, posez-le où vous voulez avec "
@@ -139,7 +128,6 @@ namespace PostApo.Etabli
                 var enough = have >= cost.quantity;
                 if (!enough) { missing.Add((cost.quantity - have) + " × " + Utils.ItemName(itemId)); }
 
-                // Chaque ingrédient : icône item, quantité possédée / requise, état couleur.
                 entries.Add(new Ui.MenuEntry(
                     (enough ? Ui.Ok("✓ ") : Ui.Bad("✕ "))
                     + cost.quantity + " × " + Utils.ItemName(itemId)
@@ -193,7 +181,6 @@ namespace PostApo.Etabli
                 .Where(c => c.Id > 0 && c.Qty > 0)
                 .ToList();
 
-            // Message explicite : « ressources insuffisantes » sans dire lesquelles est inutilisable.
             var missing = costs
                 .Where(c => Utils.CountItem(player, c.Id) < c.Qty)
                 .Select(c => (c.Qty - Utils.CountItem(player, c.Id)) + " × " + Utils.ItemName(c.Id))
@@ -211,7 +198,6 @@ namespace PostApo.Etabli
                 return;
             }
 
-            // Consommation puis remise : en cas d'echec de retrait, tout est rendu.
             var taken = new List<KeyValuePair<int, int>>();
             foreach (var cost in costs)
             {
@@ -237,8 +223,6 @@ namespace PostApo.Etabli
             Utils.Send(player, prefix + Ui.Ok("✓ Etabli fabrique. Utilisez /etabli pose pour l'installer."));
             _plugin.Webhook.LogCraft(Utils.Name(player), Utils.SteamId(player), "Etabli personnel", true);
         }
-
-        // ------------------------------------------------------------------ pose
 
         public bool HasPlaced(string steamId)
         {
@@ -322,8 +306,6 @@ namespace PostApo.Etabli
 
             if (!Save())
             {
-                // Sauvegarde impossible : on annule exactement ce qui vient d'etre ajoute
-                // et on rend l'item, plutot que de le faire disparaitre.
                 _data.placed.Remove(created);
                 if (markedNow) { _data.playersWhoPlaced.Remove(steamId); }
 
@@ -355,20 +337,18 @@ namespace PostApo.Etabli
 
             var title = mine ? "Votre établi" : "Établi de " + Utils.Sanitize(etabli.ownerName, 22);
 
+            var recipes = _plugin.Craft.GenericRecipes().ToList();
+
             var header = (mine
                     ? Ui.Ok("Votre établi personnel.")
                     : Ui.Accent("Établi de " + etabli.ownerName)
                       + (ownerDistrict != null ? Ui.Dim("  (" + ownerDistrict.name + ")") : ""))
-                + "\n" + Ui.Dim("Recettes de base accessibles ici. Les pièces avancées "
-                                + "se fabriquent à l'atelier spécialisé de votre district.")
-                + "\n" + Ui.Dim("Cliquez une recette pour voir les ressources requises.");
-
-            var recipes = _plugin.Craft.GenericRecipes().ToList();
+                + "\n" + Ui.Dim("Transformation de base. Les pièces avancées se fabriquent "
+                                + "à l'atelier spécialisé de votre district.");
 
             _plugin.Craft.OpenMenu(player, title, header, recipes, etabli.position.ToVector3());
         }
 
-        /// <summary>Retire l'etabli d'un joueur (commande staff). Ne rend pas la pose : elle reste consommee.</summary>
         public bool RemovePlaced(string steamId, bool alsoResetPlacement)
         {
             var etabli = PlacedOf(steamId);
@@ -384,8 +364,6 @@ namespace PostApo.Etabli
             _plugin.Checkpoints.RefreshAll();
             return true;
         }
-
-        // ------------------------------------------------------------------ points staff
 
         public StaffCraftPoint AddStaffPoint(Vector3 position, string name, Player placer)
         {
@@ -415,7 +393,6 @@ namespace PostApo.Etabli
             return true;
         }
 
-        /// <summary>Supprime le point staff le plus proche du joueur (usage : /etabli_point remove).</summary>
         public StaffCraftPoint RemoveNearest(Vector3 position, float maxDistance)
         {
             var nearest = _data.staffPoints
@@ -432,17 +409,6 @@ namespace PostApo.Etabli
             return nearest;
         }
 
-        /// <summary>
-        /// Pose un vrai objet du jeu a l'emplacement d'un etabli.
-        ///
-        /// Nova-Life rattache les objets a une zone : on reprend celle ou se trouve le poseur
-        /// (<c>CharacterSetup.areaId</c>). <c>AreaManager.CreateObject</c> ne renvoie rien, donc le
-        /// plugin ne peut pas retrouver l'objet plus tard : la suppression d'un point d'etabli
-        /// retire le checkpoint, pas le meuble (voir README, section Limites).
-        ///
-        /// L'echec de cette pose est sans consequence : l'etabli reste utilisable via son
-        /// checkpoint, seul le decor manque.
-        /// </summary>
         public void SpawnPhysicalObject(Player placer, Vector3 position)
         {
             var config = _plugin.Config.etabli;
@@ -463,11 +429,8 @@ namespace PostApo.Etabli
                 var setup = (Component)placer.setup;
                 var forward = setup.transform.forward;
 
-                // Devant le joueur plutot qu'a ses pieds : on evite qu'il apparaisse dans son dos
-                // ou a l'interieur de son personnage.
                 var target = position + forward.normalized * Mathf.Max(0f, config.physicalObjectForwardOffset);
 
-                // L'objet regarde le joueur.
                 var rotation = new Vector3(0f, setup.transform.eulerAngles.y + 180f, 0f);
 
                 manager.CreateObject(

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,17 +10,12 @@ using UnityEngine;
 
 namespace PostApo.Farm
 {
-    /// <summary>
-    /// Gisements : le seul moyen d'obtenir les matieres premieres qui alimentent l'etabli et les
-    /// ateliers de district. Recolte lente, rendement faible, stock limite, risque de blessure.
-    /// </summary>
     public sealed class FarmSystem
     {
         private readonly PostApoPlugin _plugin;
         private readonly JsonStore<FarmData> _store;
         private FarmData _data;
 
-        /// <summary>Recoltes en cours, indexees par SteamID (une seule a la fois).</summary>
         private readonly HashSet<string> _harvesting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public FarmSystem(PostApoPlugin plugin, string root)
@@ -81,7 +76,6 @@ namespace PostApo.Farm
             var hasMain = node.ResolvedResourceId > 0 && Utils.ItemExists(node.ResolvedResourceId);
             var hasDrops = node.drops.Any(d => d.ResolvedId > 0 && Utils.ItemExists(d.ResolvedId));
 
-            // Un point est exploitable s'il produit au moins quelque chose : ressource ou butin.
             if (!hasMain && !hasDrops)
             {
                 node.Valid = false;
@@ -108,8 +102,6 @@ namespace PostApo.Farm
             return _data.nodes.FirstOrDefault(n => n != null && n.id == id);
         }
 
-        // ------------------------------------------------------------------ points d'interaction
-
         public IEnumerable<InteractionPoint> Points()
         {
             if (!_plugin.Config.farm.enabled) { yield break; }
@@ -130,19 +122,12 @@ namespace PostApo.Farm
             }
         }
 
-        /// <summary>
-        /// Boussole des points connus : distance et direction depuis le joueur.
-        ///
-        /// Nova-Life n'expose pas de marqueur de carte au plugin ; on donne donc un cap et une
-        /// distance, ce qui laisse l'exploration reelle tout en indiquant par ou commencer.
-        /// </summary>
         public void OpenCompass(Player player, string kind)
         {
             if (player == null) { return; }
 
             var origin = Utils.Position(player);
-            // « epave » regroupe epaves et caches : du point de vue du joueur, ce sont les deux
-            // endroits ou l'on fouille plutot que l'on recolte.
+
             Func<FarmNode, bool> matches;
             if (string.Equals(kind, NodeKind.Gisement, StringComparison.OrdinalIgnoreCase))
             {
@@ -193,7 +178,6 @@ namespace PostApo.Farm
             Ui.Menu(player, title, body, entries, "Fermer", null);
         }
 
-        /// <summary>Cap cardinal du joueur vers un point (x = est, z = nord).</summary>
         private static string Bearing(Vector3 from, Vector3 to)
         {
             var dx = to.x - from.x;
@@ -214,9 +198,6 @@ namespace PostApo.Farm
             return district != null && district.HasSpecialite(node.requiredSpecialite);
         }
 
-        // ------------------------------------------------------------------ regeneration
-
-        /// <summary>Reconstitue le stock des gisements en fonction du temps ecoule. Appele par la boucle du plugin.</summary>
         public void Tick()
         {
             var now = Utils.NowUnix();
@@ -240,7 +221,6 @@ namespace PostApo.Farm
                 dirty = true;
             }
 
-            // Purge des latences expirees pour ne pas laisser grossir le fichier indefiniment.
             var expired = _data.cooldowns.Where(kv => kv.Value <= now).Select(kv => kv.Key).ToArray();
             if (expired.Length > 0)
             {
@@ -250,8 +230,6 @@ namespace PostApo.Farm
 
             if (dirty) { Save(); }
         }
-
-        // ------------------------------------------------------------------ interface
 
         private void Open(Player player, FarmNode node)
         {
@@ -333,8 +311,6 @@ namespace PostApo.Farm
 
             return what;
         }
-
-        // ------------------------------------------------------------------ recolte
 
         public float EffectiveHarvestTime(FarmNode node)
         {
@@ -478,7 +454,6 @@ namespace PostApo.Farm
 
             var prefix = _plugin.Prefix;
 
-            // Re-verification apres la duree : l'etat a pu changer entre-temps.
             if (node.maxCharges > 0 && node.charges <= 0)
             {
                 Utils.Send(player, prefix + Ui.Bad("✕ Ce point s'est epuise pendant votre travail."));
@@ -489,7 +464,6 @@ namespace PostApo.Farm
             var rareFinds = new List<string>();
             var consumed = 0;
 
-            // 1. Ressource principale (toujours, si le point en a une).
             if (node.HasMainResource)
             {
                 var amount = Utils.RandomInt(EffectiveMin(node), EffectiveMax(node));
@@ -502,8 +476,6 @@ namespace PostApo.Farm
                 }
             }
 
-            // 2. Butin : chaque ligne est tiree independamment. C'est ici que se trouvent
-            //    les plans de vehicule et les composants rares.
             foreach (var drop in node.drops)
             {
                 if (drop.ResolvedId <= 0) { continue; }
@@ -521,7 +493,6 @@ namespace PostApo.Farm
                 var line = qty + " × " + label;
                 obtained.Add(line);
 
-                // Une trouvaille peu probable merite d'etre soulignee.
                 if (drop.chancePercent <= 25f) { rareFinds.Add(line); }
             }
 
@@ -551,7 +522,6 @@ namespace PostApo.Farm
                 Utils.Send(player, prefix + Ui.Accent("★ Trouvaille rare : " + string.Join(", ", rareFinds.ToArray()) + " !"));
                 Utils.Center(player, "Trouvaille rare", rareFinds[0], 5f);
 
-                // Un plan sans explication ne sert a rien : on dit tout de suite ce qu'il ouvre.
                 foreach (var drop in node.drops)
                 {
                     if (drop.ResolvedId <= 0) { continue; }
@@ -579,7 +549,6 @@ namespace PostApo.Farm
             TryInjure(player, node);
         }
 
-        /// <summary>Le travail est dangereux : une recolte peut blesser.</summary>
         private void TryInjure(Player player, FarmNode node)
         {
             var difficulty = _plugin.Config.difficulty;
@@ -609,8 +578,6 @@ namespace PostApo.Farm
             if (!string.IsNullOrEmpty(steamId)) { _harvesting.Remove(steamId); }
         }
 
-        // ------------------------------------------------------------------ administration
-
         public FarmNode Add(Vector3 position, string slugOrId, string name)
         {
             var node = new FarmNode
@@ -634,13 +601,6 @@ namespace PostApo.Farm
             return node;
         }
 
-        /// <summary>
-        /// Cree une epave (paliers 1-3) ou une cache (paliers 4-5) prete a l'emploi.
-        ///
-        /// C'est le pendant « exploration » du farm : la ferraille tombe souvent, les plans et les
-        /// composants rares presque jamais. Plus le palier est eleve, plus le point est avare,
-        /// long a fouiller et lent a se reconstituer.
-        /// </summary>
         public FarmNode AddScavengePoint(Vector3 position, int tier, string name)
         {
             tier = Mathf.Clamp(tier, 1, 5);
@@ -656,7 +616,6 @@ namespace PostApo.Farm
                 position = new Position(position),
                 lastRegenUnix = Utils.NowUnix(),
 
-                // Ferraille de base : la magnetite reste la monnaie d'echange de la filiere metal.
                 resourceItemId = Vehicle.Mat.Magnetite,
                 minYield = 1 + tier,
                 maxYield = 2 + tier * 2,
@@ -669,15 +628,12 @@ namespace PostApo.Farm
                 requiredToolItemId = cache ? Vehicle.Mat.BoiteAOutils : 0,
             };
 
-            // Butin commun : de quoi alimenter les premieres etapes.
             node.drops.Add(new FarmDrop(Vehicle.Mat.Cuivre, 2, 4 + tier, 55f));
             node.drops.Add(new FarmDrop(Vehicle.Mat.Caoutchouc, 1, 2 + tier, 35f));
             node.drops.Add(new FarmDrop(Vehicle.Mat.Plastique, 1, 3, 30f));
 
-            // Le plan du palier : la trouvaille qui debloque reellement un chantier.
             node.drops.Add(new FarmDrop(PlanOf(tier), 1, 1, PlanChance(tier), PlanLabel(tier)));
 
-            // Composants rares, uniquement dans les points avances.
             if (tier >= 3)
             {
                 node.drops.Add(new FarmDrop(Vehicle.Mat.FaisceauElec, 1, 1, 12f, "Faisceau electronique"));
@@ -726,7 +682,6 @@ namespace PostApo.Farm
             }
         }
 
-        /// <summary>Rarete du plan : 18 % au palier 1, 3 % au palier 5.</summary>
         private static float PlanChance(int tier)
         {
             switch (tier)

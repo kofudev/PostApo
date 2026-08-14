@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Life.Network;
@@ -6,16 +6,6 @@ using Life.UI;
 
 namespace PostApo.Core
 {
-    /// <summary>
-    /// Fabriques de panels bases exclusivement sur <see cref="UIPanel"/>, l'interface native du jeu.
-    ///
-    /// Deux contraintes dictent ce fichier :
-    ///  - un panel de texte n'affiche qu'une dizaine de lignes : au-dela le texte passe sous le
-    ///    bouton. Toute la mise en page passe donc par <see cref="Paginate"/> ;
-    ///  - <c>AddTabLine(nom, prix, iconId, action)</c> combine a <c>PanelType.TabPrice</c> permet
-    ///    d'afficher l'icone d'un item a cote de chaque ligne : on s'en sert partout ou une ligne
-    ///    correspond a un objet du jeu.
-    /// </summary>
     public static class Ui
     {
         public const string ColorOk = "#7BC96F";
@@ -23,7 +13,6 @@ namespace PostApo.Core
         public const string ColorAccent = "#C96F4A";
         public const string ColorDim = "#9A9A9A";
 
-        /// <summary>Budget de caracteres tenant dans un panel sans deborder (retours a la ligne compris).</summary>
         private const int PageBudget = 300;
 
         public static string Ok(string text) { return "<color=" + ColorOk + ">" + text + "</color>"; }
@@ -31,7 +20,6 @@ namespace PostApo.Core
         public static string Accent(string text) { return "<color=" + ColorAccent + ">" + text + "</color>"; }
         public static string Dim(string text) { return "<color=" + ColorDim + ">" + text + "</color>"; }
 
-        /// <summary>Une ligne de menu. <see cref="Icon"/> = id d'item dont l'icone sera affichee.</summary>
         public sealed class MenuEntry
         {
             public string Label;
@@ -54,12 +42,6 @@ namespace PostApo.Core
             }
         }
 
-        // ------------------------------------------------------------------ pagination
-
-        /// <summary>
-        /// Decoupe un texte en pages tenant dans un panel. Les coupures se font sur les lignes
-        /// vides quand c'est possible, pour ne pas casser un paragraphe en deux.
-        /// </summary>
         public static List<string> Paginate(IEnumerable<string> lines, int budget)
         {
             var pages = new List<string>();
@@ -70,8 +52,6 @@ namespace PostApo.Core
             {
                 var line = raw ?? string.Empty;
 
-                // Une ligne longue occupe plusieurs lignes a l'ecran : on compte les caracteres,
-                // pas les sauts de ligne.
                 var cost = Math.Max(line.Length, 1) + 24;
 
                 if (length + cost > budget && current.Count > 0)
@@ -99,9 +79,6 @@ namespace PostApo.Core
             return Paginate((body ?? string.Empty).Split('\n'), PageBudget);
         }
 
-        // ------------------------------------------------------------------ panels
-
-        /// <summary>Panel de texte simple avec un unique bouton d'action.</summary>
         public static void Text(Player player, string title, string body, string buttonLabel, Action onValidate)
         {
             try
@@ -125,10 +102,6 @@ namespace PostApo.Core
             }
         }
 
-        /// <summary>
-        /// Texte long affiche page par page. Le bouton enchaine les pages puis appelle
-        /// <paramref name="onDone"/> — utilise partout ou le contenu peut deborder.
-        /// </summary>
         public static void LongText(Player player, string title, string body, string lastButtonLabel, Action onDone)
         {
             var pages = Paginate(body);
@@ -158,16 +131,11 @@ namespace PostApo.Core
                 });
         }
 
-        /// <summary>Panel d'information : pagine automatiquement, aucun effet de bord.</summary>
         public static void Info(Player player, string title, string body)
         {
             LongText(player, title, body, "Fermer", null);
         }
 
-        /// <summary>
-        /// Liste d'options. Le corps est tronque a une page : un menu doit rester lisible,
-        /// les details vont dans un panel d'info dedie.
-        /// </summary>
         public static void Menu(Player player, string title, string body, IEnumerable<MenuEntry> entries,
                                 string cancelLabel, Action onCancel)
         {
@@ -179,7 +147,6 @@ namespace PostApo.Core
                     .Where(e => e != null && !string.IsNullOrEmpty(e.Label))
                     .ToList();
 
-                // TabPrice permet les icones ; on ne l'active que si une ligne en demande une.
                 var withIcons = list.Any(e => e.Icon > 0);
                 var panel = new UIPanel(Utils.Sanitize(title, 46),
                     withIcons ? UIPanel.PanelType.TabPrice : UIPanel.PanelType.Tab);
@@ -198,7 +165,6 @@ namespace PostApo.Core
 
                     if (withIcons)
                     {
-                        // Icon porte un item id cote appelant ; le panel attend un index d'icone.
                         panel.AddTabLine(captured.Label, captured.Price ?? "", Utils.IconOf(captured.Icon), action);
                     }
                     else
@@ -230,7 +196,6 @@ namespace PostApo.Core
             }
         }
 
-        /// <summary>Confirmation binaire.</summary>
         public static void Confirm(Player player, string title, string body, string yesLabel, string noLabel,
                                    Action onYes, Action onNo)
         {
@@ -243,7 +208,6 @@ namespace PostApo.Core
             Menu(player, title, body, entries, null, null);
         }
 
-        /// <summary>Saisie texte libre.</summary>
         public static void Input(Player player, string title, string body, string placeholder,
                                  Action<string> onValidate, Action onCancel)
         {
