@@ -582,3 +582,4 @@ namespace PostApo.District
         }
     }
 }
+// Kofu

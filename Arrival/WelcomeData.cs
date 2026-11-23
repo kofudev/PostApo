@@ -7,3 +7,4 @@ namespace PostApo.Arrival
         public List<string> playersWelcomeRewarded = new List<string>();
     }
 }
+// Kofu

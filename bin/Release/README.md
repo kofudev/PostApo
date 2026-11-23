@@ -107,3 +107,4 @@ Cible : .NET Framework 4.7.2.
 ## Licence
 
 Aucune licence n'est déclarée. Projet privé, tous droits réservés à l'auteur.
+Kofu

@@ -454,3 +454,4 @@ namespace PostApo.Core
         public static void Error(string message) { try { Debug.LogError(Tag + " " + message); } catch { } }
     }
 }
+// Kofu

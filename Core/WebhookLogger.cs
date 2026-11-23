@@ -242,3 +242,4 @@ namespace PostApo.Core
         }
     }
 }
+// Kofu

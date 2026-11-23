@@ -17,3 +17,4 @@ namespace PostApo.Arrival
         public List<string> playersInitialized = new List<string>();
     }
 }
+// Kofu

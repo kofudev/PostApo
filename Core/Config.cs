@@ -141,3 +141,4 @@ namespace PostApo.Core
         public int farmInjuryMinHealth = 12;
     }
 }
+// Kofu

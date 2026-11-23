@@ -30,3 +30,4 @@ Les commandes joueurs incluent `/district`, `/etabli`, `/atelier`, `/plans`, `/e
 Cible .NET Framework 4.7.2. Les références Nova-Life et Unity sont fournies par le serveur.
 
 Aucune licence n’est déclarée dans le dépôt.
+Kofu

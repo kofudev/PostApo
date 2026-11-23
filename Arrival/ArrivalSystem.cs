@@ -388,3 +388,4 @@ namespace PostApo.Arrival
         }
     }
 }
+// Kofu

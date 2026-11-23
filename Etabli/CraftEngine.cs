@@ -486,3 +486,4 @@ namespace PostApo.Etabli
         }
     }
 }
+// Kofu

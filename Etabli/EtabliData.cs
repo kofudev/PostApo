@@ -28,3 +28,4 @@ namespace PostApo.Etabli
         public List<string> playersWhoPlaced = new List<string>();
     }
 }
+// Kofu
