@@ -31,3 +31,4 @@ Cible .NET Framework 4.7.2. Les références Nova-Life et Unity sont fournies pa
 
 Aucune licence n’est déclarée dans le dépôt.
 Kofu
+KOFUDEV
